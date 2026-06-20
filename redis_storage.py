@@ -76,7 +76,20 @@ def extract_checkin(transcript: str) -> dict:
     return json.loads(raw_text)
 
 
-def save_checkin(user_id: str, date: str, transcript: str, extracted: dict) -> str:
+def check_in(user_id: str, date: str, text: str, input_mode: str) -> str:
+    """
+    Single entry point for both Record and Type modes.
+
+    input_mode should be "voice" (text came from Deepgram transcription)
+    or "text" (user typed it directly). Either way, by the time this
+    function is called, `text` is just a string -- the extraction logic
+    below doesn't care where it came from.
+    """
+    extracted = extract_checkin(text)
+    return save_checkin(user_id, date, text, extracted, input_mode)
+
+
+def save_checkin(user_id: str, date: str, transcript: str, extracted: dict, input_mode: str = "voice") -> str:
     """
     Save one check-in to Redis.
 
@@ -92,6 +105,7 @@ def save_checkin(user_id: str, date: str, transcript: str, extracted: dict) -> s
         "user_id": user_id,
         "date": date,
         "raw_transcript": transcript,
+        "input_mode": input_mode,
         **extracted,
     }
 
@@ -116,22 +130,66 @@ def get_user_history(user_id: str) -> list[dict]:
     return history
 
 
+INSIGHT_PROMPT = """You are generating a short, warm reflective line for a patient right after they completed a daily health check-in.
+
+You'll see their full check-in history so far, oldest to newest, as JSON.
+
+Your job: notice ONE real pattern across the history -- something the patient
+likely wouldn't piece together themselves day to day -- and reflect it back
+in a single short sentence, written TO the patient (second person, "you").
+
+Rules:
+- Base this ONLY on what's actually in the data. Do not invent a pattern that isn't there.
+- If there isn't enough history yet to spot a real pattern (e.g. only 1 entry, or no repeated symptom/trigger), instead return a short, simple acknowledgment of today's entry -- do not force a pattern that doesn't exist.
+- Keep it to ONE sentence. No clinical jargon, no severity numbers recited back robotically -- write it the way a perceptive friend would notice something, not the way a chart would report it.
+- Do not give medical advice, diagnoses, or suggest treatment changes. Observation only.
+- Output ONLY the sentence. No preamble, no quotes, no JSON.
+
+Check-in history (oldest to newest):
+{history_json}
+"""
+
+
+def generate_instant_insight(user_id: str) -> str:
+    """
+    Generate the short, patient-facing reflective line shown right after
+    a check-in. Reuses get_user_history() -- no new storage needed, this
+    just reads what's already there and asks Claude to notice a pattern.
+    """
+    history = get_user_history(user_id)
+    history_json = json.dumps(history, indent=2)
+
+    prompt = INSIGHT_PROMPT.format(history_json=history_json)
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=200,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text.strip()
+
+
 if __name__ == "__main__":
+    # (date, text, input_mode) -- mix of "voice" (simulated transcripts)
+    # and "text" (simulated typed entries) to prove both modes work
+    # through the same pipeline.
     fake_checkins = [
-        ("2026-06-16", "Knee pain was about a 6 today, walking was fine but stairs were really rough. Didn't sleep great last night, maybe 5 hours. Took my ibuprofen this morning."),
-        ("2026-06-17", "Feeling pretty good today actually, energy was decent. Pain's been low the last couple days. I did skip my evening dose of meds though, just forgot."),
-        ("2026-06-18", "Today was bad. Pain was probably an 8, started right after I went for a long walk yesterday. Barely slept, felt foggy and irritable all day."),
+        ("2026-06-16", "Knee pain was about a 6 today, walking was fine but stairs were really rough. Didn't sleep great last night, maybe 5 hours. Took my ibuprofen this morning.", "voice"),
+        ("2026-06-17", "Feeling pretty good today actually, energy was decent. Pain's been low the last couple days. I did skip my evening dose of meds though, just forgot.", "text"),
+        ("2026-06-18", "Today was bad. Pain was probably an 8, started right after I went for a long walk yesterday. Barely slept, felt foggy and irritable all day.", "voice"),
     ]
 
     user_id = "cate"
 
     print("Extracting and saving check-ins...\n")
-    for date, transcript in fake_checkins:
-        extracted = extract_checkin(transcript)
-        key = save_checkin(user_id, date, transcript, extracted)
-        print(f"Saved {key}")
+    for date, text, mode in fake_checkins:
+        key = check_in(user_id, date, text, mode)
+        print(f"Saved {key} (mode: {mode})")
 
     print(f"\n--- Full history for '{user_id}', in order ---\n")
     history = get_user_history(user_id)
     for entry in history:
-        print(f"{entry['date']}: {entry['symptoms']}")
+        print(f"{entry['date']} [{entry['input_mode']}]: {entry['symptoms']}")
+
+    print(f"\n--- Instant insight after latest check-in ---\n")
+    insight = generate_instant_insight(user_id)
+    print(insight)

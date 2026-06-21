@@ -145,9 +145,9 @@ export default function PatientCheckin() {
       <div className="w-full max-w-md">
         <header className="flex flex-col items-center text-center mb-3">
           <img
-            src="/interim-logov2.png"
+            src="/interim-wordmark.png"
             alt="Interim"
-            className="h-20 w-auto"
+            className="h-14 w-auto mb-2"
           />
           <p className="text-sm text-ink-400">Check-in for {DOCTOR}</p>
         </header>

@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import InterimLogo from "./InterimLogo";
 
 const DOCTOR_NAME = "Dr. Miller";
 
@@ -23,7 +22,7 @@ export default function DoctorTopBar({
           className="shrink-0 transition-opacity hover:opacity-80"
           aria-label="Interim — patient directory"
         >
-          <InterimLogo size="md" />
+          <img src="/interim-wordmark.png" alt="Interim" className="h-9 w-auto" />
         </button>
 
         {onChange ? (

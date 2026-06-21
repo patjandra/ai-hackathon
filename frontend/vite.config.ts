@@ -9,8 +9,8 @@ export default defineConfig({
     proxy: {
       // Same-origin API + websocket: forwarded to the backend in dev so the
       // browser only ever talks to the Vite origin (works over LAN / HTTPS tunnel).
-      "/api": { target: "http://localhost:3001", changeOrigin: true },
-      "/ws": { target: "ws://localhost:3001", ws: true, changeOrigin: true },
+      "/api": { target: "http://127.0.0.1:3001", changeOrigin: true },
+      "/ws": { target: "ws://127.0.0.1:3001", ws: true, changeOrigin: true },
     },
   },
   // Read the single root .env. Only VITE_-prefixed vars are exposed to the

@@ -56,10 +56,26 @@ const clientDir = [
 ].find((p) => existsSync(join(p, "index.html")));
 
 if (clientDir) {
-  app.use(express.static(clientDir));
+  app.use(
+    express.static(clientDir, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith("index.html")) {
+          // The SPA route table lives in this file. Never let browsers/CDNs keep
+          // an old entry point that references the previous route bundle.
+          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+        } else if (filePath.includes(`${join("assets", "")}`)) {
+          // Vite assets are content-hashed, so they are safe to cache forever.
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    }),
+  );
   // SPA fallback: any non-API, non-WS, non-health GET serves index.html so
   // client-side routes (/patient, /doctor, /doctor/:id) load on hard refresh.
-  app.get(/^\/(?!api\/|ws\/|health).*/, (_req, res) => res.sendFile(join(clientDir, "index.html")));
+  app.get(/^\/(?!api\/|ws\/|health).*/, (_req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.sendFile(join(clientDir, "index.html"));
+  });
   console.log(`[static] serving frontend from ${clientDir}`);
 } else {
   console.warn("[static] no frontend build found — running API only");

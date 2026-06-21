@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useChecklist } from "../hooks/useChecklist";
 import { useDeepgram } from "../hooks/useDeepgram";
@@ -47,7 +48,8 @@ const GREETING = "Hi! Tell me how you've been feeling since your last visit.";
 const newGreeting = (): ChatMessage => ({ id: "greeting", role: "ai", text: GREETING });
 const PATIENT_STORAGE_KEY = "interim.patient";
 
-export default function PatientCheckin() {
+export default function PatientCheckin({ loginOnly = false }: { loginOnly?: boolean }) {
+  const navigate = useNavigate();
   const [patient, setPatient] = useState<Patient | null>(() => {
     try {
       const saved = localStorage.getItem(PATIENT_STORAGE_KEY);
@@ -243,6 +245,7 @@ export default function PatientCheckin() {
   const handleLogin = (matched: Patient) => {
     localStorage.setItem(PATIENT_STORAGE_KEY, JSON.stringify(matched));
     setPatient(matched);
+    navigate("/patient", { replace: true });
   };
 
   const logout = () => {
@@ -258,7 +261,8 @@ export default function PatientCheckin() {
     reset();
   };
 
-  if (!patient) return <PatientLogin onLogin={handleLogin} />;
+  if (loginOnly) return <PatientLogin onLogin={handleLogin} />;
+  if (!patient) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-[100dvh] flex justify-center px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">

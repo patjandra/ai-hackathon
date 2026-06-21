@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./index.css";
 import PatientCheckin from "./pages/PatientCheckin";
 import DoctorDashboard from "./pages/DoctorDashboard";
@@ -11,7 +11,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/doctor" replace />} />
+        <Route path="/" element={<PatientCheckin loginOnly />} />
         <Route path="/patient" element={<PatientCheckin />} />
         <Route path="/doctor" element={<DoctorDirectory />} />
         <Route path="/doctor/:patientId" element={<DoctorDashboard />} />

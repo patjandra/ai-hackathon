@@ -7,7 +7,7 @@ const TRAJECTORY: Record<Data["trajectory"], { label: string; cls: string; dot: 
 };
 
 export default function WhyThisVisitMatters({ data }: { data: Data }) {
-  const t = TRAJECTORY[data.trajectory];
+  const t = TRAJECTORY[data.trajectory] ?? TRAJECTORY.STABLE;
   return (
     <section className="relative card overflow-hidden">
       {/* accent rail */}

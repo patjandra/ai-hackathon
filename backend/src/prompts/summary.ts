@@ -62,7 +62,7 @@ Writing style (applies to assessment, focusAreas, and keyEvents descriptions):
 - Numeric trends may use a simple arrow (e.g. "7 to 4" or "7 → 4"); never use a dash for this.
 
 whyThisVisitMatters rules:
-- trajectory is one of IMPROVING / STABLE / DECLINING
+- trajectory MUST be EXACTLY one of these three strings, with no extra words or qualifiers: "IMPROVING", "STABLE", or "DECLINING". Never combine them or add a suffix.
 - Maximum 3 focusAreas; every bullet contains a specific data point (number, date, trend)
 - Lead with what changed, and flag anything that contradicts the overall trajectory
 - Never vague. Write "pain decreased from 7 to 4", not "some improvement"

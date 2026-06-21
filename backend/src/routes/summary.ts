@@ -7,9 +7,18 @@ import {
   getCheckinsSince,
   getPatient,
 } from "../services/redis.js";
-import type { PhysicianSummary } from "../../../shared/types.js";
+import type { PhysicianSummary, Trajectory } from "../../../shared/types.js";
 
 const router = Router();
+
+// The model occasionally drifts off the enum (e.g. "IMPROVING_WITH_PLATEAU").
+// Coerce to exactly one of the three allowed values so the UI never crashes.
+function normalizeTrajectory(t: unknown): Trajectory {
+  const u = String(t ?? "").toUpperCase();
+  if (u.includes("DECLIN") || u.includes("WORSE")) return "DECLINING";
+  if (u.includes("IMPROV") || u.includes("BETTER")) return "IMPROVING";
+  return "STABLE";
+}
 
 // GET /api/summary/:patientId
 router.get("/:patientId", async (req, res) => {
@@ -38,7 +47,10 @@ router.get("/:patientId", async (req, res) => {
       generatedAt: new Date().toISOString(),
       dateRange: { from: checkins[0].date, to: checkins[checkins.length - 1].date },
       checkInCount: checkins.length,
-      whyThisVisitMatters: parsed.whyThisVisitMatters!,
+      whyThisVisitMatters: {
+        trajectory: normalizeTrajectory(parsed.whyThisVisitMatters?.trajectory),
+        focusAreas: parsed.whyThisVisitMatters?.focusAreas ?? [],
+      },
       assessment: parsed.assessment!,
       keyEvents: parsed.keyEvents ?? [],
       metricSummary: parsed.metricSummary!,

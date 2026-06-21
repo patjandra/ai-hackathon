@@ -35,26 +35,47 @@ export function combinedPrompt(transcript: string, trackedParams: string[] = [],
     ? `  "trackedFindings": {\n${custom.map((p) => `    "${p}": null`).join(",\n")}\n  },`
     : `  "trackedFindings": {},`;
 
-  return `You are a clinical check-in assistant.
+  return `You are a clinical check-in assistant. The data you extract goes straight to
+the patient's doctor, so it must be specific and accurate. Assign a value to a metric
+ONLY when the patient gives a clear, unambiguous answer in the required form. If they
+mention the topic but stay vague, qualitative, or non-committal, leave value null AND
+list the metric in ambiguousMetrics so we ask a precise follow-up. Never convert a
+qualitative description into a specific value yourself.
 
 Standard metrics to always extract:
-- pain level: 0-10
-- fatigue: low / moderate / high (the LEVEL OF FATIGUE). If the patient describes
-  their ENERGY instead, invert it: high energy = "low" fatigue, low energy = "high"
-  fatigue, moderate energy = "moderate" fatigue.
-- swelling: none / mild / significant
-- morning stiffness: duration in minutes or "none"
+- pain: a NUMBER 0-10.
+    CLEAR: "my pain is a 6", "about a 4 out of 10", "zero pain" -> 0.
+    VAGUE (-> null + ambiguous): "a lot of pain", "it hurts", "pretty bad", "manageable",
+    "better than last week". A qualitative description with no number is NOT covered.
+- fatigue: low / moderate / high (the LEVEL OF FATIGUE). If the patient describes their
+  ENERGY instead, invert it: high energy = "low" fatigue, low energy = "high" fatigue,
+  moderate energy = "moderate" fatigue.
+    CLEAR: "no energy at all" -> high, "felt pretty energetic" -> low, "energy was moderate".
+    VAGUE (-> null + ambiguous): "kind of tired", "so-so", "up and down", "a bit off".
+- swelling: none / mild / significant.
+    CLEAR: "no swelling" -> none, "a little puffy" -> mild, "really swollen" -> significant.
+    VAGUE (-> null + ambiguous): "my joints felt off", "not great", "a bit weird".
+- morning stiffness: a DURATION in minutes, or "none".
+    CLEAR: "stiff for about 30 minutes", "loosened up in 10 minutes", "no stiffness" -> none.
+    VAGUE (-> null + ambiguous): "stiff in the morning", "took a while to get going",
+    "some stiffness", "a bit stiff". A mention of stiffness with no duration is NOT covered.
 - medication adherence: yes / partial / no. Use "yes" ONLY when the patient clearly
   indicates they took their full prescribed medication (e.g. "took all my meds",
   "took it as prescribed"). Use "partial" / "no" for clearly missed or skipped doses.
   Vague statements like "took some meds", "took some medication", or "had my meds"
-  are NOT clear adherence — leave the value null and mark medication_adherence as
+  are NOT clear adherence -> leave the value null and mark medication_adherence as
   ambiguous so we can confirm whether they took it as prescribed.
 ${customSection}
 ${context ? `The patient was just asked this question: "${context}"
 Their message below is a direct reply to it. Interpret short answers (e.g. "yes",
 "no", a number, or "low/moderate/high") as the answer to THAT question and set the
 matching metric accordingly. Still extract any other metrics they happen to mention.
+- If the question asks whether a symptom is PRESENT and they answer "no", "nope", or
+  "none", record that metric as absent: pain -> 0, swelling -> "none", morning
+  stiffness -> "none", medication adherence -> "no".
+- If they only AFFIRM presence ("yes", "yeah", "a bit", "some") WITHOUT the specific
+  value the question asked for (a number, a duration, or none/mild/significant), keep
+  that metric's value null and mark it ambiguous so we ask the precise follow-up next.
 
 ` : ""}Patient transcript:
 "${transcript}"

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { api, DEMO_PATIENT_ID } from "../lib/api";
 import { useChecklist } from "../hooks/useChecklist";
 import { useDeepgram } from "../hooks/useDeepgram";
@@ -16,12 +16,31 @@ const DOCTOR = "Dr. Miller";
 // Follow-ups are asked ONE metric at a time, highest priority first. MetricKey
 // order (pain → fatigue → swelling → stiffness → medication) is the priority
 // order, and missingMetrics preserves it, so missing[0] is the top unanswered gap.
-const FOLLOWUP_QUESTION: Record<MetricKey, string> = {
-  pain: "On a scale of 0 to 10, how would you rate your pain today?",
-  fatigue: "Would you say your energy has been low, moderate, or high? Low means very fatigued, high means not fatigued at all.",
-  swelling: "Have you noticed any joint swelling today?",
-  morningStiffness: "When you woke up, how long did the morning stiffness last?",
-  medicationAdherence: "Have you been able to take your medication as prescribed?",
+//
+// Each metric has STAGED questions: a gentle presence question first, then a
+// precise detail question if they confirm but don't give a specific value. The
+// stage advances per re-ask of the same metric (see askStage below). A "no" to a
+// presence question records the metric as absent server-side, so we move on.
+const FOLLOWUP_STEPS: Record<MetricKey, string[]> = {
+  pain: [
+    "Have you had any joint pain today?",
+    "On a scale of 0 to 10, what number best matches that pain?",
+  ],
+  fatigue: [
+    "How have your energy levels been today: low, moderate, or high? Low means very fatigued.",
+  ],
+  swelling: [
+    "Did you notice any joint swelling today?",
+    "Would you say that swelling is mild or significant?",
+  ],
+  morningStiffness: [
+    "Did you wake up with any stiffness this morning?",
+    "About how many minutes did it last before it eased up?",
+  ],
+  medicationAdherence: [
+    "Were you able to take your medication today?",
+    "Did you take the full dose exactly as prescribed, yes or no?",
+  ],
 };
 
 const GREETING = "Hi! Tell me how you've been feeling since your last visit.";
@@ -35,6 +54,9 @@ export default function PatientCheckin() {
   const [liveTranscript, setLiveTranscript] = useState("");
   const [draftText, setDraftText] = useState("");
   const [lastQuestion, setLastQuestion] = useState<string | null>(null);
+  // How many times we've asked about each metric, so staged follow-ups escalate
+  // from the presence question to the precise detail question.
+  const askCount = useRef<Partial<Record<MetricKey, number>>>({});
 
   const addMsg = (role: ChatMessage["role"], text: string) =>
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role, text }]);
@@ -54,6 +76,7 @@ export default function PatientCheckin() {
   // Brand-new check-in: clear everything, restart the thread.
   const beginFresh = async () => {
     reset();
+    askCount.current = {};
     setMessages([newGreeting()]);
     setLiveTranscript("");
     await start();
@@ -110,8 +133,14 @@ export default function PatientCheckin() {
         addMsg("ai", "Thanks, that's everything I need. Your check-in is saved.");
         setPhase("done");
       } else {
+        // Prefer a metric they touched on (ambiguous) over the top untouched gap.
         const target = missing.find((m) => ambiguous.includes(m)) ?? missing[0];
-        const q = FOLLOWUP_QUESTION[target];
+        // Escalate: stage = how many times we've already asked this metric,
+        // clamped to the last (detail) question so it never overflows.
+        const steps = FOLLOWUP_STEPS[target];
+        const stage = Math.min(askCount.current[target] ?? 0, steps.length - 1);
+        askCount.current[target] = (askCount.current[target] ?? 0) + 1;
+        const q = steps[stage];
         setLastQuestion(q); // remember for context on the next reply
         addMsg("ai", q);
         setPhase("followup");
@@ -188,7 +217,7 @@ export default function PatientCheckin() {
             <div className="flex items-center justify-between mb-2">
               <span className="eyebrow">Today&rsquo;s topics</span>
               <span className="text-[11px] font-medium text-ink-400">
-                {state.confirmed.length}/{Object.keys(FOLLOWUP_QUESTION).length} covered
+                {state.confirmed.length}/{Object.keys(FOLLOWUP_STEPS).length} covered
               </span>
             </div>
             <LiveChecklist state={state} layout="rail" />

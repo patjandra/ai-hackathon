@@ -5,7 +5,6 @@ import { useDeepgram } from "../hooks/useDeepgram";
 import LiveChecklist from "../components/LiveChecklist";
 import AIConversation from "../components/AIConversation";
 import VoiceRecorder from "../components/VoiceRecorder";
-import InterimLogo from "../components/InterimLogo";
 import type { ChatMessage } from "../components/AIConversation";
 import type { MetricKey } from "../../../shared/types";
 
@@ -144,8 +143,12 @@ export default function PatientCheckin() {
   return (
     <div className="min-h-screen px-4 py-8 sm:py-10">
       <div className="max-w-2xl mx-auto">
-        <header className="flex flex-col items-center text-center mb-8">
-          <InterimLogo className="mb-2" size="xl"/>
+        <header className="flex flex-col items-center text-center mb-4">
+          <img
+            src="/interim-logov2.png"
+            alt="Interim"
+            className="h-28 w-auto"
+          />
           <p className="text-sm text-ink-400">Check-in for {DOCTOR}</p>
         </header>
 

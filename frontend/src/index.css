@@ -19,7 +19,7 @@
 
 @layer components {
   .card {
-    @apply bg-white border border-clay rounded-3xl shadow-soft;
+    @apply bg-white border border-clay/70 rounded-3xl shadow-card;
   }
   .eyebrow {
     @apply text-[11px] font-semibold tracking-[0.18em] uppercase text-ink-400;

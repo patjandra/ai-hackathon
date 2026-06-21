@@ -8,3 +8,6 @@ build/
 .vercel
 .vite
 coverage/
+
+# TS incremental build cache
+*.tsbuildinfo

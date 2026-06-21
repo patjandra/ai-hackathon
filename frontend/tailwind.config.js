@@ -20,6 +20,8 @@ export default {
       },
       boxShadow: {
         soft: '0 1px 2px rgba(15,23,42,0.04), 0 6px 20px rgba(15,23,42,0.06)',
+        // Layered, slightly deeper shadow for primary surfaces — reads as "floating".
+        card: '0 1px 2px rgba(15,23,42,0.05), 0 8px 24px -6px rgba(15,23,42,0.10), 0 18px 48px -12px rgba(15,23,42,0.12)',
         lift: '0 10px 40px rgba(15,23,42,0.10)',
         glow: '0 0 0 6px rgba(99,102,241,0.10)',
       },

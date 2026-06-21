@@ -25,7 +25,7 @@ export default function AIConversation({ messages, typing, draft }: Props) {
   if (messages.length === 0 && !typing && !liveDraft) return null;
 
   return (
-    <div className="w-full rounded-3xl border border-clay bg-white shadow-soft overflow-hidden">
+    <div className="w-full rounded-3xl border border-clay/70 bg-white shadow-card overflow-hidden">
       <div className="px-4 pt-3 pb-1">
         <span className="eyebrow">Conversation</span>
       </div>

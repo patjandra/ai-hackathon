@@ -5,7 +5,6 @@ import { useDeepgram } from "../hooks/useDeepgram";
 import LiveChecklist from "../components/LiveChecklist";
 import AIConversation from "../components/AIConversation";
 import VoiceRecorder from "../components/VoiceRecorder";
-import InterimLogo from "../components/InterimLogo";
 import type { ChatMessage } from "../components/AIConversation";
 import type { MetricKey } from "../../../shared/types";
 
@@ -142,10 +141,14 @@ export default function PatientCheckin() {
   const isInputPhase = phase === "ready" || phase === "followup";
 
   return (
-    <div className="min-h-screen px-4 py-8 sm:py-10">
-      <div className="max-w-2xl mx-auto">
-        <header className="flex flex-col items-center text-center mb-8">
-          <InterimLogo className="mb-2" size="xl"/>
+    <div className="min-h-[100dvh] flex justify-center px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="w-full max-w-md">
+        <header className="flex flex-col items-center text-center mb-4">
+          <img
+            src="/interim-logov2.png"
+            alt="Interim"
+            className="h-28 w-auto"
+          />
           <p className="text-sm text-ink-400">Check-in for {DOCTOR}</p>
         </header>
 
@@ -179,7 +182,7 @@ export default function PatientCheckin() {
         )}
 
         {/* Conversation below, with the Doctor's Checklist to its right */}
-        <div className="grid grid-cols-[1fr_9.5rem] sm:grid-cols-[1fr_15rem] gap-3 sm:gap-5 items-start">
+        <div className="grid grid-cols-[1fr_9.5rem] gap-3 items-start">
           <AIConversation
             messages={messages}
             typing={phase === "processing"}

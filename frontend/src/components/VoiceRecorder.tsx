@@ -4,9 +4,10 @@ interface Props {
   onStart: () => void;
   onDone: () => void;
   onFollowupSpeak: () => void;
+  onAddMore: () => void;
 }
 
-export default function VoiceRecorder({ phase, onStart, onDone, onFollowupSpeak }: Props) {
+export default function VoiceRecorder({ phase, onStart, onDone, onFollowupSpeak, onAddMore }: Props) {
   return (
     <div className="w-full flex flex-col items-center mb-8">
       {phase === "ready" && <MicButton label="Tap to start your check-in" onClick={onStart} />}
@@ -46,6 +47,12 @@ export default function VoiceRecorder({ phase, onStart, onDone, onFollowupSpeak 
           </span>
           <p className="mt-5 text-lg font-medium text-ink-900">Check-in saved</p>
           <p className="text-ink-500 text-sm">See you at your appointment.</p>
+          <button
+            onClick={onAddMore}
+            className="mt-6 px-6 py-2.5 rounded-full border border-clay text-ink-600 text-sm font-medium hover:bg-sand/60 transition-colors"
+          >
+            Something changed? Add an update
+          </button>
         </div>
       )}
     </div>

@@ -57,6 +57,9 @@ export default function PatientCheckin() {
   // How many times we've asked about each metric, so staged follow-ups escalate
   // from the presence question to the precise detail question.
   const askCount = useRef<Partial<Record<MetricKey, number>>>({});
+  // True once the check-in has been completed at least once, so later updates
+  // (when symptoms change) get an "updated" confirmation rather than the first-time one.
+  const completedOnce = useRef(false);
 
   const addMsg = (role: ChatMessage["role"], text: string) =>
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role, text }]);
@@ -77,10 +80,20 @@ export default function PatientCheckin() {
   const beginFresh = async () => {
     reset();
     askCount.current = {};
+    completedOnce.current = false;
     setMessages([newGreeting()]);
     setLiveTranscript("");
     await start();
     setPhase("recording");
+  };
+
+  // After a check-in is saved, let the patient add more if symptoms change.
+  // Re-opens the input on the SAME check-in (free-form, not a reply to a
+  // prior question) so the new info is merged into their existing record.
+  const addUpdate = () => {
+    setLastQuestion(null);
+    addMsg("ai", "Of course. Tell me what has changed since your check-in.");
+    setPhase("followup");
   };
 
   // Answering a follow-up: keep confirmed checkmarks AND the thread.
@@ -130,7 +143,13 @@ export default function PatientCheckin() {
 
       if (missing.length === 0) {
         await api.complete(id);
-        addMsg("ai", "Thanks, that's everything I need. Your check-in is saved.");
+        addMsg(
+          "ai",
+          completedOnce.current
+            ? "Got it. I've added that to your check-in for your doctor."
+            : "Thanks, that's everything I need. Your check-in is saved.",
+        );
+        completedOnce.current = true;
         setPhase("done");
       } else {
         // Prefer a metric they touched on (ambiguous) over the top untouched gap.
@@ -198,6 +217,7 @@ export default function PatientCheckin() {
               onStart={beginFresh}
               onDone={done}
               onFollowupSpeak={beginFollowup}
+              onAddMore={addUpdate}
             />
             {mode === "voice" && isInputPhase && (
               <button

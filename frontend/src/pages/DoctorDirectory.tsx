@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DEMO_PATIENTS, type DemoPatient, type InterimStatus } from "../lib/patients";
+import DoctorTopBar from "../components/DoctorTopBar";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -114,7 +115,9 @@ export default function DoctorDirectory() {
   const handleSort   = (v: SortKey)     => { setSortBy(v); setPage(1); };
 
   return (
-    <div className="min-h-screen px-5 py-8 lg:py-12">
+    <div className="min-h-screen">
+      <DoctorTopBar />
+      <main className="px-5 py-8 lg:py-12">
       <div className="max-w-4xl mx-auto">
 
         {/* ── Header ── */}
@@ -294,8 +297,7 @@ export default function DoctorDirectory() {
         )}
 
       </div>
-
-      {/* Close sort dropdown on outside click */}
+      </main>
     </div>
   );
 }

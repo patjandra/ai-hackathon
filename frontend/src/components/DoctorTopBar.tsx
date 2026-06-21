@@ -1,13 +1,11 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import InterimLogo from "./InterimLogo";
 
 const DOCTOR_NAME = "Dr. Miller";
 
-// Sticky desktop app bar for the doctor-facing pages: brand (→ directory),
-// a global patient search, and an account chip. The search is dual-mode:
-//  • Controlled (directory passes value/onChange) → filters the list live.
-//  • Uncontrolled (dashboard) → navigates to /doctor?q=… on Enter.
+// Sticky app bar shared by the doctor-facing pages: brand (→ directory) on the
+// left, an account chip on the right. A search is rendered only when a page
+// passes `onChange` (the directory has its own in-page search, so it doesn't).
 export default function DoctorTopBar({
   value,
   onChange,
@@ -16,14 +14,6 @@ export default function DoctorTopBar({
   onChange?: (v: string) => void;
 }) {
   const navigate = useNavigate();
-  const controlled = onChange !== undefined;
-  const [local, setLocal] = useState("");
-  const q = controlled ? (value ?? "") : local;
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!controlled) navigate(`/doctor?q=${encodeURIComponent(local.trim())}`);
-  };
 
   return (
     <header className="sticky top-0 z-30 border-b border-clay/70 bg-white/85 backdrop-blur-md">
@@ -36,22 +26,26 @@ export default function DoctorTopBar({
           <InterimLogo size="md" />
         </button>
 
-        <form onSubmit={submit} className="flex-1 max-w-md mx-auto hidden sm:block">
-          <div className="relative">
-            <svg
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400 pointer-events-none"
-              fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
-            >
-              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-            </svg>
-            <input
-              value={q}
-              onChange={(e) => (controlled ? onChange!(e.target.value) : setLocal(e.target.value))}
-              placeholder="Search patients…"
-              className="w-full pl-10 pr-3 py-2 text-[13px] bg-sand/70 border border-transparent rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-300 placeholder:text-ink-400 transition-colors"
-            />
+        {onChange ? (
+          <div className="flex-1 max-w-md mx-auto hidden sm:block">
+            <div className="relative">
+              <svg
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400 pointer-events-none"
+                fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
+              >
+                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+              </svg>
+              <input
+                value={value ?? ""}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder="Search patients…"
+                className="w-full pl-10 pr-3 py-2 text-[13px] bg-sand/70 border border-transparent rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-300 placeholder:text-ink-400 transition-colors"
+              />
+            </div>
           </div>
-        </form>
+        ) : (
+          <div className="flex-1" />
+        )}
 
         <div className="shrink-0 flex items-center gap-2.5 pl-1">
           <div className="text-right hidden md:block leading-tight">

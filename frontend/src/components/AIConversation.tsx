@@ -29,7 +29,7 @@ export default function AIConversation({ messages, typing, draft }: Props) {
       <div className="px-4 pt-3 pb-1">
         <span className="eyebrow">Conversation</span>
       </div>
-      <div className="max-h-[48vh] min-h-[180px] overflow-y-auto px-4 pb-4 pt-1 space-y-2.5">
+      <div className="max-h-[56vh] min-h-[220px] overflow-y-auto px-4 pb-4 pt-1 space-y-2.5">
         {messages.map((m) =>
           m.role === "ai" ? (
             <Bubble key={m.id} side="left">{m.text}</Bubble>

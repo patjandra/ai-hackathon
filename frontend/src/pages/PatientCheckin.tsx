@@ -143,11 +143,11 @@ export default function PatientCheckin() {
   return (
     <div className="min-h-[100dvh] flex justify-center px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="w-full max-w-md">
-        <header className="flex flex-col items-center text-center mb-4">
+        <header className="flex flex-col items-center text-center mb-3">
           <img
             src="/interim-logov2.png"
             alt="Interim"
-            className="h-28 w-auto"
+            className="h-20 w-auto"
           />
           <p className="text-sm text-ink-400">Check-in for {DOCTOR}</p>
         </header>
@@ -181,25 +181,25 @@ export default function PatientCheckin() {
           </div>
         )}
 
-        {/* Conversation below, with the Doctor's Checklist to its right */}
-        <div className="grid grid-cols-[1fr_9.5rem] gap-3 items-start">
-          <AIConversation
-            messages={messages}
-            typing={phase === "processing"}
-            draft={phase === "recording" ? liveTranscript : ""}
-          />
-          <aside className="sticky top-6">
-            <div className="card p-4">
-              <h2 className="text-base font-semibold tracking-tight text-ink-900 leading-tight">
-                Doctor&rsquo;s Checklist
-              </h2>
-              <p className="text-[12px] text-ink-400 leading-snug mb-3">
-                Topics {DOCTOR} wants covered today
-              </p>
-              <LiveChecklist state={state} />
+        {/* Always-visible topic rail: pins to the top of the viewport so patients
+            watch items check off live. The conversation below is the focal point. */}
+        <div className="sticky top-0 z-20 -mx-4 px-4 pt-1 pb-2 bg-cream/85 backdrop-blur-sm">
+          <div className="card px-3 py-2.5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="eyebrow">Today&rsquo;s topics</span>
+              <span className="text-[11px] font-medium text-ink-400">
+                {state.confirmed.length}/{Object.keys(FOLLOWUP_QUESTION).length} covered
+              </span>
             </div>
-          </aside>
+            <LiveChecklist state={state} layout="rail" />
+          </div>
         </div>
+
+        <AIConversation
+          messages={messages}
+          typing={phase === "processing"}
+          draft={phase === "recording" ? liveTranscript : ""}
+        />
       </div>
     </div>
   );

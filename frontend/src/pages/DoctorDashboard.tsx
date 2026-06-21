@@ -5,6 +5,7 @@ import { getPatient } from "../lib/patients";
 import type { CheckIn, PhysicianSummary } from "../../../shared/types";
 import StatusBadge from "../components/StatusBadge";
 import FlagBadge from "../components/FlagBadge";
+import DoctorTopBar from "../components/DoctorTopBar";
 import TrackedParameters from "../components/TrackedParameters";
 import WhyThisVisitMatters from "../components/WhyThisVisitMatters";
 import SummaryCard from "../components/SummaryCard";
@@ -57,7 +58,12 @@ function fmtTime(iso: string) {
 // ── loading / error shells ─────────────────────────────────────────────────────
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-screen grid place-items-center px-6">{children}</div>;
+  return (
+    <div className="min-h-screen">
+      <DoctorTopBar />
+      <div className="grid place-items-center px-6 py-24">{children}</div>
+    </div>
+  );
 }
 
 // ── main component ─────────────────────────────────────────────────────────────
@@ -86,7 +92,7 @@ export default function DoctorDashboard() {
       const url = force ? `?force=1` : "";
       const [s, c] = await Promise.all([
         // Force-bust cache by appending query param (backend honours ?force=1)
-        fetch(`http://127.0.0.1:3001/api/summary/${patientId}${url}`)
+        fetch(`/api/summary/${patientId}${url}`)
           .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status + " " + r.statusText))))
           .catch(() => null),
         api.checkins(patientId).catch(() => [] as CheckIn[]),
@@ -110,7 +116,7 @@ export default function DoctorDashboard() {
     setRegen(true);
     setSavedEdit(null);
     // Delete cache on backend then re-fetch
-    await fetch(`http://127.0.0.1:3001/api/summary/${patientId}`, { method: "DELETE" }).catch(() => {});
+    await fetch(`/api/summary/${patientId}`, { method: "DELETE" }).catch(() => {});
     await load(true);
     setRegen(false);
   };
@@ -177,7 +183,9 @@ export default function DoctorDashboard() {
   const initials = patientName.split(" ").map((n) => n[0]).join("").slice(0, 2);
 
   return (
-    <div className="min-h-screen px-5 py-8 lg:py-12">
+    <div className="min-h-screen">
+      <DoctorTopBar />
+      <main className="px-5 py-8 lg:py-12">
       <div className="max-w-3xl mx-auto space-y-5">
 
         {/* ── Back link ── */}
@@ -392,6 +400,7 @@ export default function DoctorDashboard() {
         </div>
 
       </div>
+      </main>
     </div>
   );
 }

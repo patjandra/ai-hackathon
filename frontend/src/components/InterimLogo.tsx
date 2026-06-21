@@ -12,12 +12,13 @@ export function InterimMark({ className = "" }: { className?: string }) {
 
 const SIZES = {
   md: { mark: "w-7 h-7", text: "text-lg", gap: "gap-2" },
-  lg: { mark: "w-11 h-11", text: "text-3xl", gap: "gap-3" },
+  lg: { mark: "w-11 h-11", text: "text-3xl", gap: "gap-1" },
+  xl: { mark: "w-14 h-14", text: "text-4xl", gap: "gap-2" },
 } as const;
 
 export default function InterimLogo({
   className = "",
-  size = "md",
+  size = "lg",
 }: {
   className?: string;
   size?: keyof typeof SIZES;

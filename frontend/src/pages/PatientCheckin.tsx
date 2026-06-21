@@ -145,7 +145,7 @@ export default function PatientCheckin() {
     <div className="min-h-screen px-4 py-8 sm:py-10">
       <div className="max-w-2xl mx-auto">
         <header className="flex flex-col items-center text-center mb-8">
-          <InterimLogo className="mb-2" />
+          <InterimLogo className="mb-2" size="xl"/>
           <p className="text-sm text-ink-400">Check-in for {DOCTOR}</p>
         </header>
 

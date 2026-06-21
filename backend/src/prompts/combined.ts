@@ -12,6 +12,7 @@ export interface CombinedResult {
   };
   coveredMetrics: string[];
   missingMetrics: string[];
+  ambiguousMetrics: string[];
   followUpQuestion: string | null;
   patientQuote: string | null;
 }
@@ -21,7 +22,9 @@ export function combinedPrompt(transcript: string): string {
 
 The doctor requires these metrics:
 - pain level: 0-10
-- fatigue: low / moderate / high
+- fatigue: low / moderate / high (the LEVEL OF FATIGUE). If the patient describes
+  their ENERGY instead, invert it: high energy = "low" fatigue, low energy = "high"
+  fatigue, moderate energy = "moderate" fatigue.
 - swelling: none / mild / significant
 - morning stiffness: duration in minutes or none
 - medication adherence: yes / partial / no
@@ -43,6 +46,11 @@ Task:
    and medication_adherence all stay null.
 5. Select the single most clinically significant quote from the transcript
    (something that captures meaning beyond the structured metrics), or null if none.
+6. In ambiguousMetrics, list any metric the patient TOUCHED ON or alluded to but
+   did NOT clearly specify (so its value stayed null). Use these exact keys:
+   pain, fatigue, swelling, morning_stiffness, medication_adherence.
+   Example: "my joints felt a little off" → swelling is ambiguous (mentioned, not
+   clearly given). Do not list metrics the patient never referenced at all.
 
 Return JSON only:
 
@@ -56,6 +64,7 @@ Return JSON only:
   },
   "coveredMetrics": [],
   "missingMetrics": [],
+  "ambiguousMetrics": [],
   "followUpQuestion": null,
   "patientQuote": null
 }`;

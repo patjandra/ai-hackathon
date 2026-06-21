@@ -87,6 +87,9 @@ export interface CheckInResponse {
   metrics: CheckInMetrics;
   coveredMetrics: MetricKey[];
   missingMetrics: MetricKey[];
+  // Metrics the patient touched on but left unclear (still missing). Used to
+  // steer the next follow-up to the "topic in discussion" before the top gap.
+  ambiguousMetrics: MetricKey[];
   followUpQuestion: string | null;
 }
 
@@ -98,7 +101,8 @@ export interface CompleteResponse {
 // ----- Frontend-only checklist state -----
 
 export interface ChecklistState {
-  optimistic: MetricKey[]; // keyword scan on interim — highlighted yellow
+  optimistic: MetricKey[]; // transient keyword scan on interim — highlighted yellow
+  ambiguous: MetricKey[]; // touched on but unclear — stays yellow until answered
   confirmed: MetricKey[]; // confirmed by Claude on final — green
   missing: MetricKey[]; // still empty per Claude
 }

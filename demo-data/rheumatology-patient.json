@@ -1,0 +1,83 @@
+{
+  "patient": {
+    "id": "demo-sarah-chen-ra",
+    "name": "Sarah Chen",
+    "diagnosis": "Rheumatoid Arthritis",
+    "lastAppointment": "2025-10-03",
+    "nextAppointment": "2025-11-14"
+  },
+  "checkins": [
+    {
+      "date": "2025-10-06",
+      "pain": 7, "fatigue": "high", "swelling": "significant",
+      "morningStiffness": 45, "medicationAdherence": "yes",
+      "quote": "Worst week in a while, my hands feel like they're on fire in the morning."
+    },
+    {
+      "date": "2025-10-09",
+      "pain": 8, "fatigue": "high", "swelling": "significant",
+      "morningStiffness": 60, "medicationAdherence": "yes",
+      "quote": "Went for a short hike and really regretted it the next day."
+    },
+    {
+      "date": "2025-10-12",
+      "pain": 6, "fatigue": "moderate", "swelling": "mild",
+      "morningStiffness": 30, "medicationAdherence": "yes",
+      "quote": "A bit better today. The swelling went down some."
+    },
+    {
+      "date": "2025-10-15",
+      "pain": 7, "fatigue": "high", "swelling": "significant",
+      "morningStiffness": 50, "medicationAdherence": "partial",
+      "quote": "Forgot my evening dose. Not sure if that's why I feel worse."
+    },
+    {
+      "date": "2025-10-18",
+      "pain": 5, "fatigue": "moderate", "swelling": "mild",
+      "morningStiffness": 25, "medicationAdherence": "yes",
+      "quote": "Doctor adjusted my dosage today. Hoping this helps."
+    },
+    {
+      "date": "2025-10-22",
+      "pain": 4, "fatigue": "moderate", "swelling": "none",
+      "morningStiffness": 20, "medicationAdherence": "yes",
+      "quote": "Feeling more like myself. Pain is manageable."
+    },
+    {
+      "date": "2025-10-26",
+      "pain": 4, "fatigue": "low", "swelling": "none",
+      "morningStiffness": 15, "medicationAdherence": "yes",
+      "quote": "Had a good week. Walked to the farmers market on Saturday."
+    },
+    {
+      "date": "2025-10-30",
+      "pain": 3, "fatigue": "low", "swelling": "none",
+      "morningStiffness": 10, "medicationAdherence": "yes",
+      "quote": "Best I've felt in months honestly."
+    },
+    {
+      "date": "2025-11-03",
+      "pain": 4, "fatigue": "moderate", "swelling": "mild",
+      "morningStiffness": 20, "medicationAdherence": "yes",
+      "quote": "Slight uptick in stiffness. Wondering if the cold weather is a trigger."
+    },
+    {
+      "date": "2025-11-07",
+      "pain": 4, "fatigue": "moderate", "swelling": "mild",
+      "morningStiffness": 25, "medicationAdherence": "yes",
+      "quote": "Plateau feels frustrating even though I know I'm better than October."
+    },
+    {
+      "date": "2025-11-10",
+      "pain": 5, "fatigue": "moderate", "swelling": "mild",
+      "morningStiffness": 30, "medicationAdherence": "yes",
+      "quote": "Morning stiffness is my main thing now. Worried it's not going away."
+    },
+    {
+      "date": "2025-11-13",
+      "pain": 4, "fatigue": "low", "swelling": "none",
+      "morningStiffness": 20, "medicationAdherence": "yes",
+      "quote": "Tomorrow is my appointment. Nervous but hopeful."
+    }
+  ]
+}

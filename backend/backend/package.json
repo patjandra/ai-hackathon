@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@arizeai/openinference-instrumentation-anthropic": "^0.1.13",
+    "@arizeai/openinference-semantic-conventions": "^2.5.0",
+    "@grpc/grpc-js": "^1.14.4",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.219.0",
+    "@opentelemetry/resources": "^2.8.0",
+    "@opentelemetry/sdk-trace-node": "^2.8.0",
+    "@opentelemetry/semantic-conventions": "^1.41.1"
+  }
+}

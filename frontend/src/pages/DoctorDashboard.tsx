@@ -130,14 +130,24 @@ export default function DoctorDashboard() {
   const needsReview = !!summary && !!latestCheckin &&
     new Date(latestCheckin.date) > new Date(summary.generatedAt);
 
-  // Determine interim status
-  const interimStatus = !checkins.length
+  // Whether this patient has real API data or is demo-only (no Redis data).
+  const hasRealData = checkins.length > 0 || summary !== null;
+
+  // Status from real API data
+  const apiStatus = !checkins.length
     ? "no-checkins"
     : !summary
       ? "no-interim"
       : needsReview
         ? "needs-review"
         : "ready";
+
+  // Single source of truth: when real data exists use it; otherwise fall back
+  // to the same DEMO_PATIENTS record the directory card reads from.
+  const interimStatus = hasRealData ? apiStatus : (demo?.status ?? "no-checkins");
+
+  // Use demo check-in count for display when no real API data
+  const effectiveCheckInCount = hasRealData ? checkins.length : (demo?.checkInCount ?? 0);
 
   // Patient name/DOB/condition come from the demo directory (fallback to API patient name)
   const patientName      = demo?.name ?? patientId;
@@ -233,7 +243,7 @@ export default function DoctorDashboard() {
         </header>
 
         {/* ── Needs Review banner ── */}
-        {needsReview && !editing && (
+        {(needsReview || (!hasRealData && demo?.status === "needs-review")) && !editing && (
           <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-[13px] animate-fade-up">
             <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -301,7 +311,7 @@ export default function DoctorDashboard() {
         )}
 
         {/* ── CASE: No check-ins ── */}
-        {!loading && checkins.length === 0 && (
+        {!loading && effectiveCheckInCount === 0 && (
           <section className="card p-8 text-center animate-fade-up">
             <div className="w-12 h-12 rounded-full bg-sand grid place-items-center mx-auto mb-4">
               <svg className="w-6 h-6 text-ink-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -317,7 +327,7 @@ export default function DoctorDashboard() {
         )}
 
         {/* ── CASE: Check-ins but no Interim ── */}
-        {!loading && checkins.length > 0 && !summary && !editing && (
+        {!loading && effectiveCheckInCount > 0 && !summary && !editing && (
           <section className="card p-8 text-center animate-fade-up">
             <div className="w-12 h-12 rounded-full bg-indigo-50 grid place-items-center mx-auto mb-4">
               <svg className="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -326,7 +336,7 @@ export default function DoctorDashboard() {
             </div>
             <h3 className="text-[15px] font-semibold text-ink-900 mb-2">No Interim generated yet</h3>
             <p className="text-sm text-ink-500 max-w-sm mx-auto leading-relaxed mb-5">
-              This patient has {checkins.length} check-in{checkins.length !== 1 ? "s" : ""} available.
+              This patient has {effectiveCheckInCount} check-in{effectiveCheckInCount !== 1 ? "s" : ""} available.
               Generate an Interim to create a physician-ready briefing before the next visit.
             </p>
             <button

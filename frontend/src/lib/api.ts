@@ -45,7 +45,7 @@ export const api = {
   getAnomaly: (patientId: string) =>
     fetch(`${API}/api/patient/${patientId}/anomaly`)
       .then((r) => j<{ flagged: boolean; reason: string | null; checkedAt: string }>(r))
-      .catch(() => ({ flagged: false, reason: null, checkedAt: "" })),
+      .catch(() => null),
 
   getTrackedParams: (patientId: string) =>
     fetch(`${API}/api/patient/${patientId}/parameters`).then((r) =>

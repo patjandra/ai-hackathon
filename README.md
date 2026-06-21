@@ -35,9 +35,14 @@ demo-data/     rheumatology-patient.json
 - **In-progress check-ins** live in `checkin:{id}` with a TTL; promoted to the ZSet on `/complete`.
 - **Models:** extraction → `claude-haiku-4-5`; summary → `claude-sonnet-4-6`.
 - **Deepgram param** is `keyterm` (singular), not `keyterms`.
+- **Deepgram SDK:** installed `@deepgram/sdk@4.11.3` uses `createClient` + `listen.live()` +
+  `LiveTranscriptionEvents` (Transcript = `"Results"`) + `connection.send()/finish()`. (The
+  `new DeepgramClient` / `listen.v1.connect` style in some docs is a different SDK version.)
 
 ## Outstanding wiring (see plan)
 
 - Arize: run the `arize-instrumentation` skill; emit token-before/after as custom span attributes.
-- Token Company: verify the JS export name (`with_compression` vs `withCompression`); passthrough fallback is in place.
-- Deepgram SDK option names/event payloads — validate against the installed `@deepgram/sdk` version.
+- Token Company: not yet a dependency. `claude.ts` lazy-requires it with a passthrough fallback,
+  so Claude works without it. To enable: add the package, verify the export name
+  (`with_compression` vs `withCompression`), and switch the lazy `require` to a dynamic import
+  (backend is ESM).

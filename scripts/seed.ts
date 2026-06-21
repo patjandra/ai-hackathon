@@ -1,5 +1,5 @@
 // Usage: from backend/ run `npm run seed`  (or: npx tsx scripts/seed.ts)
-import "dotenv/config";
+import "../backend/src/env.js"; // loads root .env (dotenv resolves from backend/)
 import { seedFromFile } from "./seedLib.js";
 import { redis } from "../backend/src/services/redis.js";
 

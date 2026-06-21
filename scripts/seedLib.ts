@@ -3,6 +3,7 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { randomUUID } from "crypto";
 import {
+  clearPatientCheckins,
   completeCheckin,
   connectRedis,
   setPatient,
@@ -32,6 +33,7 @@ export async function seedFromFile(): Promise<{ patientId: string }> {
   };
 
   await setPatient(json.patient);
+  await clearPatientCheckins(json.patient.id); // idempotent: wipe prior runs first
 
   for (const r of json.checkins) {
     const checkin: CheckIn = {

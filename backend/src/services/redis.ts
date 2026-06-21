@@ -104,6 +104,16 @@ export async function getCheckin(id: string): Promise<CheckIn | null> {
   return unflattenCheckin(h);
 }
 
+// Wipe a patient's check-ins + cached summary so re-seeding is idempotent.
+export async function clearPatientCheckins(patientId: string) {
+  const ids = await redis.zRange(kCheckins(patientId), 0, -1);
+  const multi = redis.multi();
+  for (const id of ids) multi.del(kCheckin(id));
+  multi.del(kCheckins(patientId));
+  multi.del(kSummary(patientId));
+  await multi.exec();
+}
+
 export async function completeCheckin(c: CheckIn, ts: number) {
   await redis.hSet(kCheckin(c.id), flattenCheckin(c));
   await redis.persist(kCheckin(c.id)); // drop the in-progress TTL

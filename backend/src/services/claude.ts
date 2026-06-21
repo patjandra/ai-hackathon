@@ -1,4 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { createRequire } from "module";
+
+// ESM has no `require`; create one so an optional CJS dependency can be loaded
+// lazily without making this whole module async.
+const require = createRequire(import.meta.url);
 
 // The Token Company wrapper (plan issue B + LOW note).
 // The JS export name may differ from the docs' snake_case `with_compression`
@@ -14,15 +19,15 @@ function buildClient(): Anthropic {
   const key = process.env.TOKEN_COMPANY_API_KEY;
   if (!key) return base;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const tc = require("the-token-company");
-    const wrap = tc.with_compression ?? tc.withCompression;
+    const wrap = tc.with_compression ?? tc.withCompression ?? tc.default;
     if (typeof wrap === "function") {
+      console.log("[token-company] compression wrapper active");
       return wrap(base, { compression_api_key: key });
     }
     console.warn("[token-company] wrapper export not found; using passthrough");
-  } catch (e) {
-    console.warn("[token-company] not installed; using passthrough", e);
+  } catch {
+    console.warn("[token-company] package not installed; using passthrough");
   }
   return base;
 }

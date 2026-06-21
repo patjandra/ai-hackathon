@@ -86,7 +86,7 @@ export default function DoctorDashboard() {
       const url = force ? `?force=1` : "";
       const [s, c] = await Promise.all([
         // Force-bust cache by appending query param (backend honours ?force=1)
-        fetch(`http://127.0.0.1:3001/api/summary/${patientId}${url}`)
+        fetch(`/api/summary/${patientId}${url}`)
           .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status + " " + r.statusText))))
           .catch(() => null),
         api.checkins(patientId).catch(() => [] as CheckIn[]),
@@ -110,7 +110,7 @@ export default function DoctorDashboard() {
     setRegen(true);
     setSavedEdit(null);
     // Delete cache on backend then re-fetch
-    await fetch(`http://127.0.0.1:3001/api/summary/${patientId}`, { method: "DELETE" }).catch(() => {});
+    await fetch(`/api/summary/${patientId}`, { method: "DELETE" }).catch(() => {});
     await load(true);
     setRegen(false);
   };

@@ -26,30 +26,67 @@ export default function DoctorDashboard() {
       .catch((e) => setError(String(e)));
   }, [patientId]);
 
-  if (error) return <div className="p-8 text-rose-600">Failed to load: {error}</div>;
-  if (!patient || !summary) return <div className="p-8 text-slate-500">Loading briefing…</div>;
+  if (error)
+    return (
+      <div className="min-h-screen grid place-items-center px-6">
+        <div className="card px-6 py-5 text-rose-600">Failed to load: {error}</div>
+      </div>
+    );
+  if (!patient || !summary)
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <div className="flex items-center gap-3 text-ink-500">
+          <span className="w-5 h-5 rounded-full border-2 border-clay border-t-indigo-500 animate-spin" />
+          Preparing briefing…
+        </div>
+      </div>
+    );
+
+  const initials = patient.name
+    .split(" ")
+    .map((n) => n[0])
+    .join("");
 
   return (
-    <div className="min-h-screen bg-slate-100 p-6 lg:p-10">
-      <div className="max-w-4xl mx-auto space-y-5">
-        <header className="bg-white rounded-xl shadow-sm p-5">
-          <h1 className="text-2xl font-bold text-slate-800">
-            {patient.name} · {patient.diagnosis}
-          </h1>
-          <p className="text-slate-500">
-            Next visit: {fmt(patient.nextAppointment)} · {summary.checkInCount} check-ins since {fmt(patient.lastAppointment)}
-          </p>
+    <div className="min-h-screen px-5 py-8 lg:py-12">
+      <div className="max-w-4xl mx-auto space-y-4">
+        <header className="flex items-center gap-3.5 px-1 mb-1 animate-fade-up">
+          <div className="w-11 h-11 rounded-xl bg-indigo-500 text-white grid place-items-center text-sm font-medium shadow-soft shrink-0">
+            {initials}
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold tracking-tight text-ink-900 truncate leading-tight">
+              {patient.name}
+            </h1>
+            <p className="text-[13px] text-ink-500 leading-tight">
+              {patient.diagnosis}
+              <span className="text-ink-400"> · </span>
+              <span className="text-ink-700 font-medium">{summary.checkInCount} check-ins</span> since {fmt(patient.lastAppointment)}
+              <span className="text-ink-400"> · </span>
+              Next visit {fmt(patient.nextAppointment)}
+            </p>
+          </div>
         </header>
 
-        <WhyThisVisitMatters data={summary.whyThisVisitMatters} />
-        <SummaryCard summary={summary} />
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <MetricChart checkins={checkins} />
-          <KeyEvents events={summary.keyEvents} />
+        <div className="animate-fade-up" style={{ animationDelay: "60ms" }}>
+          <WhyThisVisitMatters data={summary.whyThisVisitMatters} />
+        </div>
+        <div className="animate-fade-up" style={{ animationDelay: "120ms" }}>
+          <SummaryCard summary={summary} />
         </div>
 
-        <PatientQuote quote={summary.patientQuote} date={summary.patientQuoteDate} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div className="animate-fade-up" style={{ animationDelay: "180ms" }}>
+            <MetricChart checkins={checkins} />
+          </div>
+          <div className="animate-fade-up" style={{ animationDelay: "240ms" }}>
+            <KeyEvents events={summary.keyEvents} />
+          </div>
+        </div>
+
+        <div className="animate-fade-up" style={{ animationDelay: "300ms" }}>
+          <PatientQuote quote={summary.patientQuote} date={summary.patientQuoteDate} />
+        </div>
       </div>
     </div>
   );

@@ -24,56 +24,82 @@ const KEYTERMS = [
  * Relays browser microphone audio to Deepgram and pushes transcripts back.
  *
  * API matches the installed @deepgram/sdk@4.x: createClient -> listen.live(),
- * LiveTranscriptionEvents, connection.send(chunk), connection.finish().
+ * LiveTranscriptionEvents, connection.send(chunk), connection.finalize()/finish().
  *
- * AUDIO FORMAT (plan issue A): the frontend sends raw 16 kHz linear16 PCM
- * captured via an AudioWorklet — MediaRecorder/opus chunks lose their container
- * headers after the first chunk and fail to decode mid-stream.
+ * Robustness:
+ *  - sample rate comes from the client (?sr=) so Safari's 48k context still decodes.
+ *  - audio that arrives before Deepgram opens is buffered, not dropped.
+ *  - a "finalize" control message flushes Deepgram's last transcript before close.
  */
 export function attachDeepgramProxy(wss: WebSocketServer) {
   const deepgram = createClient(process.env.DEEPGRAM_API_KEY!);
 
-  wss.on("connection", (client: WebSocket) => {
-    // One Deepgram connection per check-in session; kept alive across the
-    // follow-up turn (plan issue F).
+  wss.on("connection", (client: WebSocket, req) => {
+    const sampleRate =
+      Number(new URL(req.url ?? "", "http://localhost").searchParams.get("sr")) || 16000;
+
     const connection = deepgram.listen.live({
       model: "nova-3",
       language: "en-US",
       smart_format: true,
-      interim_results: true, // Phase 1 optimistic highlighting
-      utterance_end_ms: 1500, // emits an UtteranceEnd event after 1.5s silence
+      interim_results: true,
+      utterance_end_ms: 1500,
       encoding: "linear16",
-      sample_rate: 16000,
-      // `keyterm` isn't in the SDK's option types yet; pass through via cast.
+      sample_rate: sampleRate,
       keyterm: KEYTERMS,
     } as any);
+
+    let dgOpen = false;
+    const queue: ArrayBuffer[] = [];
 
     const send = (msg: TranscriptMessage) => {
       if (client.readyState === client.OPEN) client.send(JSON.stringify(msg));
     };
 
     connection.on(LiveTranscriptionEvents.Open, () => {
+      dgOpen = true;
+      while (queue.length) connection.send(queue.shift()!);
+
       connection.on(LiveTranscriptionEvents.Transcript, (data: any) => {
         const transcript: string = data.channel?.alternatives?.[0]?.transcript ?? "";
         if (!transcript) return;
-        // interim → Phase 1 keyword scan; final → trigger Claude call
         send({ transcript, type: data.is_final ? "final" : "interim" });
       });
-
       connection.on(LiveTranscriptionEvents.UtteranceEnd, () => {
         send({ transcript: "", type: "utterance_end" });
       });
-
-      connection.on(LiveTranscriptionEvents.Error, (err: unknown) =>
-        console.error("[deepgram]", err),
-      );
-      connection.on(LiveTranscriptionEvents.Close, () => client.close());
+      connection.on(LiveTranscriptionEvents.Error, (err: unknown) => console.error("[deepgram]", err));
+      connection.on(LiveTranscriptionEvents.Close, () => {
+        try {
+          client.close();
+        } catch {
+          /* already closed */
+        }
+      });
     });
 
-    // Browser audio frames in → forward to Deepgram (Buffer → ArrayBuffer).
-    client.on("message", (chunk: Buffer) =>
-      connection.send(chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength)),
-    );
-    client.on("close", () => connection.finish());
+    client.on("message", (data: Buffer, isBinary: boolean) => {
+      if (isBinary) {
+        const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+        if (dgOpen) connection.send(buf);
+        else queue.push(buf); // not open yet — buffer instead of dropping
+      } else {
+        // text control frame from the client
+        try {
+          const msg = JSON.parse(data.toString());
+          if (msg.type === "finalize") connection.finalize();
+        } catch {
+          /* ignore malformed control message */
+        }
+      }
+    });
+
+    client.on("close", () => {
+      try {
+        connection.finish();
+      } catch {
+        /* already closed */
+      }
+    });
   });
 }

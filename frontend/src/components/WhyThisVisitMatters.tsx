@@ -1,28 +1,36 @@
 import type { WhyThisVisitMatters as Data } from "../../../shared/types";
 
-const COLOR: Record<Data["trajectory"], string> = {
-  IMPROVING: "text-emerald-600",
-  STABLE: "text-amber-600",
-  DECLINING: "text-rose-600",
+const TRAJECTORY: Record<Data["trajectory"], { label: string; cls: string; dot: string }> = {
+  IMPROVING: { label: "Improving", cls: "bg-indigo-50 text-indigo-700 ring-indigo-200", dot: "bg-indigo-500" },
+  STABLE: { label: "Stable", cls: "bg-amber-50 text-amber-700 ring-amber-200", dot: "bg-amber-500" },
+  DECLINING: { label: "Declining", cls: "bg-rose-50 text-rose-700 ring-rose-200", dot: "bg-rose-500" },
 };
 
 export default function WhyThisVisitMatters({ data }: { data: Data }) {
+  const t = TRAJECTORY[data.trajectory];
   return (
-    <section className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-sky-500">
-      <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-xs font-bold tracking-widest text-slate-400">WHY THIS VISIT MATTERS</h2>
-        <span className={`text-sm font-semibold ${COLOR[data.trajectory]}`}>
-          Overall trajectory: {data.trajectory}
-        </span>
+    <section className="relative card overflow-hidden">
+      {/* accent rail */}
+      <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-indigo-400 to-indigo-600" />
+      <div className="p-5 pl-6">
+        <div className="flex items-center justify-between gap-3 mb-3.5">
+          <h2 className="eyebrow">Why this visit matters</h2>
+          <span
+            className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full ring-1 ${t.cls}`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${t.dot}`} />
+            {t.label}
+          </span>
+        </div>
+        <ul className="space-y-2.5">
+          {data.focusAreas.map((area, i) => (
+            <li key={i} className="flex gap-3 text-[14px] text-ink-700 leading-6">
+              <span className="mt-[7px] w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+              <span>{area}</span>
+            </li>
+          ))}
+        </ul>
       </div>
-      <ul className="space-y-2">
-        {data.focusAreas.map((area, i) => (
-          <li key={i} className="flex gap-2 text-slate-700">
-            <span className="text-sky-500">•</span>
-            <span>{area}</span>
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }

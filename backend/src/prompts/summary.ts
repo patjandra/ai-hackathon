@@ -34,9 +34,9 @@ Return JSON only:
   "whyThisVisitMatters": {
     "trajectory": "IMPROVING",
     "focusAreas": [
-      "Pain decreased 7 → 4 but morning stiffness increased 10 → 30 min over last 2 weeks",
-      "Missed 1 dose Oct 15, correlated with symptom spike next day",
-      "Patient concerned medication may be plateauing — address proactively"
+      "Pain fell from 7 to 4, but morning stiffness rose from 10 to 30 min in the last 2 weeks",
+      "One missed dose on Oct 15 lined up with a symptom spike the next day",
+      "Patient worries the medication is plateauing. Worth raising early."
     ]
   },
   "assessment": "Pain improved from 7 → 4 average over six weeks...",
@@ -44,24 +44,38 @@ Return JSON only:
     { "date": "2025-10-09", "description": "Flare after hiking", "severity": "notable" }
   ],
   "metricSummary": {
-    "pain": "7 → 4 average",
+    "pain": "7 → 4",
     "fatigue": "High → Low",
-    "adherence": "Missed 1 dose",
-    "morningStiffness": "10 → 30 min (recent increase)",
-    "swelling": "Resolved after week 3"
+    "adherence": "1 missed dose",
+    "morningStiffness": "10 → 30 min",
+    "swelling": "Resolved"
   },
   "patientQuote": "Morning stiffness is my main thing now. Worried it's not going away.",
   "patientQuoteDate": "2025-11-10"
 }
 
+Writing style (applies to assessment, focusAreas, and keyEvents descriptions):
+- Keep sentences short and easy to skim. Prefer two short sentences over one long one.
+- Do NOT use em dashes or en dashes (the "—" or "–" characters). Use a period or comma instead.
+- Do not join clauses with a dash, and do not use semicolons in prose.
+- Plain, direct clinical language. No flowery phrasing.
+- Numeric trends may use a simple arrow (e.g. "7 to 4" or "7 → 4"); never use a dash for this.
+
 whyThisVisitMatters rules:
 - trajectory is one of IMPROVING / STABLE / DECLINING
 - Maximum 3 focusAreas; every bullet contains a specific data point (number, date, trend)
-- Lead with what changed; flag anything that contradicts the overall trajectory
-- Never vague — "pain decreased from 7 → 4", not "some improvement"
+- Lead with what changed, and flag anything that contradicts the overall trajectory
+- Never vague. Write "pain decreased from 7 to 4", not "some improvement"
 - Do NOT repeat the trajectory label in the bullets
 
 Assessment rules:
-- 2-3 sentences, narrative arc, specific numbers, end with primary concern
-- Write as if a senior physician is handing this to a colleague; no generic summaries`;
+- 2-3 short sentences, narrative arc, specific numbers, end with the primary concern
+- Write as if a senior physician is handing this to a colleague. No generic summaries.
+
+metricSummary rules (CRITICAL, these render as tiny at-a-glance chips):
+- Each value MUST be ultra-terse: max 4 words, ideally a single start → end trend
+- Use an arrow for change: "7 → 4", "High → Low", "60 → 30 min"
+- NO dates, NO parentheticals, NO semicolons, NO full sentences
+- Examples of GOOD: "7 → 4", "1 missed dose", "Resolved", "10 → 30 min"
+- Examples of BAD: "Peak 8 (2025-10-09) → trough 3; net improvement from 7"`;
 }

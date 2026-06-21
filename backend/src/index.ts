@@ -18,7 +18,19 @@ await initArize();
 await connectRedis();
 
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_URL ?? true }));
+// Allow the configured prod origin plus any localhost port in dev, so Vite
+// landing on 5173 vs 5174 never causes a CORS block.
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      const ok =
+        !origin ||
+        origin === process.env.FRONTEND_URL ||
+        /^http:\/\/localhost:\d+$/.test(origin);
+      cb(null, ok);
+    },
+  }),
+);
 app.use(express.json({ limit: "1mb" }));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));

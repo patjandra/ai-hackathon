@@ -9,13 +9,21 @@ import type { MetricKey } from "../../../shared/types";
 
 type Phase = "ready" | "recording" | "processing" | "followup" | "done";
 
+const HEADINGS: Record<Phase, string> = {
+  ready: "How have you been?",
+  recording: "I'm listening…",
+  processing: "One moment…",
+  followup: "Just one more thing",
+  done: "All done",
+};
+
 export default function PatientCheckin() {
   const [phase, setPhase] = useState<Phase>("ready");
   const [checkinId, setCheckinId] = useState<string | null>(null);
   const [followUp, setFollowUp] = useState<string | null>(null);
   const [liveTranscript, setLiveTranscript] = useState("");
 
-  const { state, scanInterim, applyConfirmed, reset } = useChecklist();
+  const { state, scanInterim, applyConfirmed, clearOptimistic, reset } = useChecklist();
 
   const onInterim = useCallback(
     (t: string) => {
@@ -27,8 +35,18 @@ export default function PatientCheckin() {
 
   const { recording, start, stop } = useDeepgram({ onInterim });
 
-  const begin = async () => {
+  // Brand-new check-in: clear everything.
+  const beginFresh = async () => {
     reset();
+    setFollowUp(null);
+    setLiveTranscript("");
+    await start();
+    setPhase("recording");
+  };
+
+  // Answering a follow-up: keep confirmed checkmarks, only clear live highlights.
+  const beginFollowup = async () => {
+    clearOptimistic();
     setFollowUp(null);
     setLiveTranscript("");
     await start();
@@ -38,7 +56,6 @@ export default function PatientCheckin() {
   const done = async () => {
     const transcript = await stop();
     setPhase("processing");
-    // Phase 2: single Claude call on the final transcript.
     if (!checkinId) {
       const r = await api.checkin(DEMO_PATIENT_ID, transcript);
       setCheckinId(r.checkinId);
@@ -62,16 +79,19 @@ export default function PatientCheckin() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center px-6 py-10 max-w-md mx-auto">
-      <h1 className="text-xl font-semibold text-slate-800 mb-6">Your check-in</h1>
+    <div className="min-h-screen flex flex-col items-center px-6 py-10 max-w-md mx-auto">
+      <div className="w-full text-center mb-8">
+        <p className="eyebrow mb-1">PreVisit check-in</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-ink-900 transition-all duration-300">{HEADINGS[phase]}</h1>
+      </div>
 
       <VoiceRecorder
         phase={phase}
         recording={recording}
         liveTranscript={liveTranscript}
-        onStart={begin}
+        onStart={beginFresh}
         onDone={done}
-        onFollowupSpeak={begin}
+        onFollowupSpeak={beginFollowup}
       />
 
       <LiveChecklist state={state} />

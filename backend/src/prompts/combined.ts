@@ -30,12 +30,19 @@ Patient transcript:
 "${transcript}"
 
 Task:
-1. Extract any mentioned metrics.
-2. Mark which required metrics are still missing.
+1. Extract ONLY the metrics the patient explicitly and clearly stated in THIS transcript.
+   For every metric the patient did not clearly address, set value, confidence, and raw to null.
+   It is normal and expected for most metrics to be null in a short message.
+2. A metric is "covered" only when it has an explicit value here. List the rest in missingMetrics.
 3. If anything is missing, generate one natural follow-up question.
-4. Do not infer values the patient did not clearly provide.
+   Keep it short, warm, and easy to answer out loud (one sentence).
+   Do NOT use em dashes or en dashes ("—" / "–"); use a comma or period.
+4. NEVER infer, assume, or guess. Do not fill in a metric just because it is on the list.
+   If the patient said nothing about a metric, its value MUST be null.
+   Example: if the patient only mentions pain, then fatigue, swelling, morning_stiffness,
+   and medication_adherence all stay null.
 5. Select the single most clinically significant quote from the transcript
-   (something that captures meaning beyond the structured metrics).
+   (something that captures meaning beyond the structured metrics), or null if none.
 
 Return JSON only:
 

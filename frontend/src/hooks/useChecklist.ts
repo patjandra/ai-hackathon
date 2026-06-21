@@ -24,8 +24,10 @@ export function optimisticHighlight(transcript: string): MetricKey[] {
     .map(([metric]) => metric);
 }
 
+const EMPTY: ChecklistState = { optimistic: [], ambiguous: [], confirmed: [], missing: [] };
+
 export function useChecklist() {
-  const [state, setState] = useState<ChecklistState>({ optimistic: [], confirmed: [], missing: [] });
+  const [state, setState] = useState<ChecklistState>(EMPTY);
 
   // Phase 1: union new optimistic hits with what we've already lit up.
   const scanInterim = useCallback((transcript: string) => {
@@ -33,16 +35,25 @@ export function useChecklist() {
     setState((s) => ({ ...s, optimistic: Array.from(new Set([...s.optimistic, ...hits])) }));
   }, []);
 
-  // Phase 2: Claude's confirmed truth wins.
-  const applyConfirmed = useCallback((confirmed: MetricKey[], missing: MetricKey[]) => {
-    setState({ optimistic: [], confirmed, missing });
-  }, []);
+  // Phase 2: Claude's confirmed truth wins. Ambiguous metrics accumulate and
+  // stay amber until they're confirmed (i.e. no longer missing).
+  const applyConfirmed = useCallback(
+    (confirmed: MetricKey[], missing: MetricKey[], ambiguous: MetricKey[]) => {
+      setState((s) => {
+        const persisted = Array.from(new Set([...s.ambiguous, ...ambiguous])).filter((k) =>
+          missing.includes(k),
+        );
+        return { optimistic: [], ambiguous: persisted, confirmed, missing };
+      });
+    },
+    [],
+  );
 
-  // Clear only the transient highlights; keep confirmed + missing intact.
-  // Used when re-recording to answer a follow-up so completed checks persist.
+  // Clear only the transient highlights; keep confirmed/ambiguous/missing intact.
+  // Used when re-recording to answer a follow-up so completed + amber rows persist.
   const clearOptimistic = useCallback(() => setState((s) => ({ ...s, optimistic: [] })), []);
 
-  const reset = useCallback(() => setState({ optimistic: [], confirmed: [], missing: [] }), []);
+  const reset = useCallback(() => setState(EMPTY), []);
 
   return { state, scanInterim, applyConfirmed, clearOptimistic, reset };
 }

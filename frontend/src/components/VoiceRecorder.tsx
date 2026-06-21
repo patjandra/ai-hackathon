@@ -1,13 +1,12 @@
 interface Props {
   phase: "ready" | "recording" | "processing" | "followup" | "done";
   recording: boolean;
-  liveTranscript: string;
   onStart: () => void;
   onDone: () => void;
   onFollowupSpeak: () => void;
 }
 
-export default function VoiceRecorder({ phase, liveTranscript, onStart, onDone, onFollowupSpeak }: Props) {
+export default function VoiceRecorder({ phase, onStart, onDone, onFollowupSpeak }: Props) {
   return (
     <div className="w-full flex flex-col items-center mb-8">
       {phase === "ready" && <MicButton label="Tap to start your check-in" onClick={onStart} />}
@@ -21,9 +20,7 @@ export default function VoiceRecorder({ phase, liveTranscript, onStart, onDone, 
           >
             <Waveform />
           </button>
-          <p className="mt-6 text-ink-700 text-center min-h-[3rem] max-w-xs leading-relaxed">
-            {liveTranscript || <span className="text-ink-400">Listening…</span>}
-          </p>
+          <p className="mt-5 text-sm text-ink-400">Listening…</p>
           <button
             onClick={onDone}
             className="mt-2 px-8 py-3 rounded-full bg-ink-900 text-white font-medium shadow-soft active:scale-95 transition-transform"

@@ -32,6 +32,23 @@ const ALL: MetricKey[] = ["pain", "fatigue", "swelling", "morningStiffness", "me
 const coveredOf = (m: CheckInMetrics) => ALL.filter((k) => m[k].value !== null && m[k].value !== "");
 const missingOf = (m: CheckInMetrics) => ALL.filter((k) => m[k].value === null || m[k].value === "");
 
+const SNAKE_TO_KEY: Record<string, MetricKey> = {
+  pain: "pain",
+  fatigue: "fatigue",
+  swelling: "swelling",
+  morning_stiffness: "morningStiffness",
+  medication_adherence: "medicationAdherence",
+};
+
+// Metrics the patient touched on but left unclear, restricted to those still
+// missing. `missing` is priority-ordered, so the result is too.
+function ambiguousOf(result: CombinedResult, missing: MetricKey[]): MetricKey[] {
+  const flagged = new Set(
+    (result.ambiguousMetrics ?? []).map((s) => SNAKE_TO_KEY[s]).filter(Boolean),
+  );
+  return missing.filter((k) => flagged.has(k));
+}
+
 async function extract(transcript: string, trackedParams: string[]): Promise<CombinedResult> {
   const text = await callText(EXTRACTION_MODEL, combinedPrompt(transcript, trackedParams), 1000);
   return parseJsonResponse<CombinedResult>(text);
@@ -83,6 +100,7 @@ router.post("/", async (req, res) => {
       metrics,
       coveredMetrics: checkin.coveredMetrics,
       missingMetrics: checkin.missingMetrics,
+      ambiguousMetrics: ambiguousOf(result, checkin.missingMetrics),
       followUpQuestion: checkin.missingMetrics.length ? result.followUpQuestion : null,
     });
   } catch (e) {
@@ -112,6 +130,7 @@ router.post("/:id/followup", async (req, res) => {
       updatedMetrics: merged,
       coveredMetrics: existing.coveredMetrics,
       missingMetrics: existing.missingMetrics,
+      ambiguousMetrics: ambiguousOf(result, existing.missingMetrics),
       followUpQuestion: existing.missingMetrics.length ? result.followUpQuestion : null,
     });
   } catch (e) {

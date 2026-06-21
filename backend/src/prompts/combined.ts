@@ -13,6 +13,7 @@ export interface CombinedResult {
   trackedFindings: Record<string, string | null>;
   coveredMetrics: string[];
   missingMetrics: string[];
+  ambiguousMetrics: string[];
   followUpQuestion: string | null;
   patientQuote: string | null;
 }
@@ -38,7 +39,9 @@ export function combinedPrompt(transcript: string, trackedParams: string[] = [])
 
 Standard metrics to always extract:
 - pain level: 0-10
-- fatigue: low / moderate / high
+- fatigue: low / moderate / high (the LEVEL OF FATIGUE). If the patient describes
+  their ENERGY instead, invert it: high energy = "low" fatigue, low energy = "high"
+  fatigue, moderate energy = "moderate" fatigue.
 - swelling: none / mild / significant
 - morning stiffness: duration in minutes or "none"
 - medication adherence: yes / partial / no
@@ -49,12 +52,21 @@ Patient transcript:
 Tasks:
 1. Extract ONLY what the patient explicitly stated. If they did not mention a metric, set all fields to null.
    It is normal and expected for most metrics to be null in a short message.
-2. For each additional tracked parameter, write a brief phrase describing what the patient said,
-   or null if they did not mention it. NEVER fabricate or infer.
-3. A metric is "covered" only if it has an explicit value. List uncovered ones in missingMetrics.
-4. Write ONE warm, natural follow-up question covering the most important uncovered items
-   (standard metrics AND any uncovered tracked parameters). One sentence, no em dashes.
-5. Pick the most clinically significant quote from the transcript, or null if none.
+2. A metric is "covered" only when it has an explicit value here. List the rest in missingMetrics.
+3. If anything is missing, generate one natural follow-up question.
+   Keep it short, warm, and easy to answer out loud (one sentence).
+   Do NOT use em dashes or en dashes ("—" / "–"); use a comma or period.
+4. NEVER infer, assume, or guess. Do not fill in a metric just because it is on the list.
+   If the patient said nothing about a metric, its value MUST be null.
+   Example: if the patient only mentions pain, then fatigue, swelling, morning_stiffness,
+   and medication_adherence all stay null.
+5. Select the single most clinically significant quote from the transcript
+   (something that captures meaning beyond the structured metrics), or null if none.
+6. In ambiguousMetrics, list any metric the patient TOUCHED ON or alluded to but
+   did NOT clearly specify (so its value stayed null). Use these exact keys:
+   pain, fatigue, swelling, morning_stiffness, medication_adherence.
+   Example: "my joints felt a little off" → swelling is ambiguous (mentioned, not
+   clearly given). Do not list metrics the patient never referenced at all.
 
 Return JSON only:
 
@@ -69,6 +81,7 @@ Return JSON only:
 ${trackedFindingsSchema}
   "coveredMetrics": [],
   "missingMetrics": [],
+  "ambiguousMetrics": [],
   "followUpQuestion": null,
   "patientQuote": null
 }`;

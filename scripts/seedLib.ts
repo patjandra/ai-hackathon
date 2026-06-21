@@ -28,7 +28,7 @@ interface RawCheckin {
 export async function seedFromFile(): Promise<{ patientId: string }> {
   await connectRedis();
   const json = JSON.parse(await readFile(DATA, "utf8")) as {
-    patient: { id: string; name: string; diagnosis: string; lastAppointment: string; nextAppointment: string };
+    patient: { id: string; name: string; dob: string; diagnosis: string; lastAppointment: string; nextAppointment: string };
     checkins: RawCheckin[];
   };
 

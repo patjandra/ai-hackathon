@@ -40,6 +40,40 @@ const SNAKE_TO_KEY: Record<string, MetricKey> = {
   medication_adherence: "medicationAdherence",
 };
 
+const PARAM_TO_METRIC: Record<string, MetricKey> = {
+  pain: "pain",
+  fatigue: "fatigue",
+  swelling: "swelling",
+  "morning stiffness": "morningStiffness",
+  "medication adherence": "medicationAdherence",
+};
+
+function metricForTopic(topic: string): MetricKey | null {
+  return PARAM_TO_METRIC[topic.trim().toLocaleLowerCase("en-US")] ?? null;
+}
+
+function hasValue(value: unknown): boolean {
+  return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
+function topicCoverage(
+  topics: string[],
+  metrics: CheckInMetrics,
+  trackedFindings: Record<string, string | null> | undefined,
+  ambiguousMetrics: MetricKey[],
+) {
+  const coveredTopics = topics.filter((topic) => {
+    const metric = metricForTopic(topic);
+    return metric ? hasValue(metrics[metric].value) : hasValue(trackedFindings?.[topic]);
+  });
+  const missingTopics = topics.filter((topic) => !coveredTopics.includes(topic));
+  const ambiguousTopics = missingTopics.filter((topic) => {
+    const metric = metricForTopic(topic);
+    return metric ? ambiguousMetrics.includes(metric) : false;
+  });
+  return { requiredTopics: topics, coveredTopics, missingTopics, ambiguousTopics };
+}
+
 // Metrics the patient touched on but left unclear, restricted to those still
 // missing. `missing` is priority-ordered, so the result is too.
 function ambiguousOf(result: CombinedResult, missing: MetricKey[]): MetricKey[] {
@@ -79,6 +113,11 @@ function mergeTrackedFindings(
 router.post("/", async (req, res) => {
   try {
     const { patientId, transcript } = req.body as { patientId: string; transcript: string };
+    if (!patientId || !transcript?.trim()) {
+      return res.status(400).json({ error: "patient_id_and_transcript_required" });
+    }
+    const patient = await getPatient(patientId);
+    if (!patient) return res.status(404).json({ error: "patient_not_found" });
     const trackedParams = await getTrackedParams(patientId);
     const result = await extract(transcript, trackedParams);
     const metrics = toMetrics(result);
@@ -92,16 +131,19 @@ router.post("/", async (req, res) => {
       missingMetrics: missingOf(metrics),
       followUpUsed: false,
       patientQuote: result.patientQuote,
+      trackedParameters: trackedParams,
       trackedFindings: result.trackedFindings ?? {},
     };
     await saveInProgress(checkin);
+    const ambiguousMetrics = ambiguousOf(result, checkin.missingMetrics);
     res.json({
       checkinId: checkin.id,
       metrics,
       coveredMetrics: checkin.coveredMetrics,
       missingMetrics: checkin.missingMetrics,
-      ambiguousMetrics: ambiguousOf(result, checkin.missingMetrics),
-      followUpQuestion: checkin.missingMetrics.length ? result.followUpQuestion : null,
+      ambiguousMetrics,
+      ...topicCoverage(trackedParams, metrics, checkin.trackedFindings, ambiguousMetrics),
+      followUpQuestion: result.followUpQuestion,
     });
   } catch (e) {
     console.error(e);
@@ -115,7 +157,7 @@ router.post("/:id/followup", async (req, res) => {
     const existing = await getCheckin(req.params.id);
     if (!existing) return res.status(404).json({ error: "checkin_not_found" });
     const { transcript, context } = req.body as { transcript: string; context?: string };
-    const trackedParams = await getTrackedParams(existing.patientId);
+    const trackedParams = existing.trackedParameters ?? await getTrackedParams(existing.patientId);
     const result = await extract(transcript, trackedParams, context ?? "");
     const merged = mergeMetrics(existing.metrics, toMetrics(result));
     existing.metrics = merged;
@@ -126,12 +168,14 @@ router.post("/:id/followup", async (req, res) => {
     existing.trackedFindings = mergeTrackedFindings(existing.trackedFindings, result.trackedFindings ?? {});
     if (result.patientQuote && !existing.patientQuote) existing.patientQuote = result.patientQuote;
     await saveInProgress(existing);
+    const ambiguousMetrics = ambiguousOf(result, existing.missingMetrics);
     res.json({
       updatedMetrics: merged,
       coveredMetrics: existing.coveredMetrics,
       missingMetrics: existing.missingMetrics,
-      ambiguousMetrics: ambiguousOf(result, existing.missingMetrics),
-      followUpQuestion: existing.missingMetrics.length ? result.followUpQuestion : null,
+      ambiguousMetrics,
+      ...topicCoverage(trackedParams, merged, existing.trackedFindings, ambiguousMetrics),
+      followUpQuestion: result.followUpQuestion,
     });
   } catch (e) {
     console.error(e);

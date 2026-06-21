@@ -27,6 +27,22 @@ async function j<T>(res: Response): Promise<T> {
 }
 
 export const api = {
+  listPatients: () => fetch(`${API}/api/patient`).then((r) => j<Patient[]>(r)),
+
+  createPatient: (patient: Omit<Patient, "id" | "dashboardUrl">) =>
+    fetch(`${API}/api/patient`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patient),
+    }).then((r) => j<Patient>(r)),
+
+  loginPatient: (name: string, dob: string) =>
+    fetch(`${API}/api/patient/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, dob }),
+    }).then((r) => j<Patient>(r)),
+
   checkin: (patientId: string, transcript: string) =>
     fetch(`${API}/api/checkin`, {
       method: "POST",

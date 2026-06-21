@@ -1,15 +1,65 @@
 import { Router } from "express";
+import { randomUUID } from "crypto";
 import {
+  getPatients,
   getAlert,
   getCheckinsSince,
   getFullTrackedParams,
   getPatient,
+  findPatientByIdentity,
   setAlert,
+  setPatient,
   setTrackedParams,
 } from "../services/redis.js";
 import { detectAnomalies } from "../services/anomaly.js";
 
 const router = Router();
+
+// GET /api/patient — Redis-backed patients created/seeded through the backend.
+router.get("/", async (_req, res) => {
+  res.json(await getPatients());
+});
+
+// POST /api/patient — create a patient who can immediately use name + DOB login.
+router.post("/", async (req, res) => {
+  const { name, dob, diagnosis, lastAppointment, nextAppointment } = req.body as {
+    name?: string;
+    dob?: string;
+    diagnosis?: string;
+    lastAppointment?: string;
+    nextAppointment?: string;
+  };
+  if (![name, dob, diagnosis, lastAppointment, nextAppointment].every((value) => value?.trim())) {
+    return res.status(400).json({ error: "all_patient_fields_required" });
+  }
+  if (await findPatientByIdentity(name!, dob!)) {
+    return res.status(409).json({ error: "patient_already_exists" });
+  }
+
+  const patient = {
+    id: `patient-${randomUUID()}`,
+    name: name!.trim(),
+    dob: dob!.trim(),
+    diagnosis: diagnosis!.trim(),
+    lastAppointment: lastAppointment!.trim(),
+    nextAppointment: nextAppointment!.trim(),
+  };
+  await setPatient(patient);
+  res.status(201).json(patient);
+});
+
+// POST /api/patient/login { name, dob }
+// Hackathon-grade identity check: resolve an existing patient by full name + DOB.
+router.post("/login", async (req, res) => {
+  const { name, dob } = req.body as { name?: string; dob?: string };
+  if (!name?.trim() || !dob?.trim()) {
+    return res.status(400).json({ error: "name_and_dob_required" });
+  }
+
+  const patient = await findPatientByIdentity(name, dob);
+  if (!patient) return res.status(404).json({ error: "patient_not_found" });
+  res.json(patient);
+});
 
 // GET /api/patient/:patientId
 router.get("/:patientId", async (req, res) => {

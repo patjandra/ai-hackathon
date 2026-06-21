@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { getPatient } from "../lib/patients";
-import type { CheckIn, PhysicianSummary } from "../../../shared/types";
+import type { CheckIn, Patient, PhysicianSummary } from "../../../shared/types";
 import StatusBadge from "../components/StatusBadge";
 import FlagBadge from "../components/FlagBadge";
 import DoctorTopBar from "../components/DoctorTopBar";
@@ -75,6 +75,7 @@ export default function DoctorDashboard() {
 
   const [summary, setSummary]   = useState<PhysicianSummary | null>(null);
   const [checkins, setCheckins] = useState<CheckIn[]>([]);
+  const [apiPatient, setApiPatient] = useState<Patient | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
   const [regen, setRegen]       = useState(false);
@@ -90,15 +91,17 @@ export default function DoctorDashboard() {
     setError(null);
     try {
       const url = force ? `?force=1` : "";
-      const [s, c] = await Promise.all([
+      const [s, c, p] = await Promise.all([
         // Force-bust cache by appending query param (backend honours ?force=1)
         fetch(`/api/summary/${patientId}${url}`)
           .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status + " " + r.statusText))))
           .catch(() => null),
         api.checkins(patientId).catch(() => [] as CheckIn[]),
+        api.patient(patientId).catch(() => null),
       ]);
       setSummary(s);
       setCheckins(c);
+      setApiPatient(p);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -110,6 +113,16 @@ export default function DoctorDashboard() {
     load();
     // Fetch anomaly status independently — non-blocking
     api.getAnomaly(patientId).then(setAnomaly).catch(() => {});
+
+    // A patient may finish a check-in while this dashboard is open in another
+    // tab. Refresh when the doctor returns so the newly completed Redis record
+    // and invalidated/rebuilt Interim appear without a manual reload.
+    const refreshOnFocus = () => {
+      load();
+      api.getAnomaly(patientId).then(setAnomaly).catch(() => {});
+    };
+    window.addEventListener("focus", refreshOnFocus);
+    return () => window.removeEventListener("focus", refreshOnFocus);
   }, [patientId]);
 
   const handleRegenerate = async () => {
@@ -155,11 +168,11 @@ export default function DoctorDashboard() {
   // Use demo check-in count for display when no real API data
   const effectiveCheckInCount = hasRealData ? checkins.length : (demo?.checkInCount ?? 0);
 
-  // Patient name/DOB/condition come from the demo directory (fallback to API patient name)
-  const patientName      = demo?.name ?? patientId;
-  const patientDob       = demo?.dob ?? null;
-  const patientCondition = demo?.condition ?? summary?.patientId ?? "";
-  const patientNextVisit = demo?.nextVisit ?? null;
+  // Redis is primary; static demo data is only a visual fallback.
+  const patientName      = apiPatient?.name ?? demo?.name ?? patientId;
+  const patientDob       = apiPatient?.dob ?? demo?.dob ?? null;
+  const patientCondition = apiPatient?.diagnosis ?? demo?.condition ?? "";
+  const patientNextVisit = apiPatient?.nextAppointment ?? demo?.nextVisit ?? null;
 
   if (loading && !summary) {
     return (

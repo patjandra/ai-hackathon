@@ -22,6 +22,8 @@ const kCheckins = (id: string) => `checkins:${id}`;
 const kCheckin = (id: string) => `checkin:${id}`;
 const kSummary = (id: string) => `summary:${id}`;
 const kParams = (id: string) => `params:${id}`;
+const kPatientIdentity = "patients:by-identity";
+const kPatients = "patients:all";
 
 const IN_PROGRESS_TTL = 60 * 60; // 1h — covers a check-in + its follow-up turn
 
@@ -44,6 +46,7 @@ export function flattenCheckin(c: CheckIn): Record<string, string> {
     missingMetrics: c.missingMetrics.join(","),
     followUpUsed: String(c.followUpUsed),
     patientQuote: c.patientQuote ?? "",
+    trackedParameters: c.trackedParameters ? JSON.stringify(c.trackedParameters) : "",
     trackedFindings: c.trackedFindings ? JSON.stringify(c.trackedFindings) : "",
   };
 }
@@ -68,18 +71,24 @@ export function unflattenCheckin(h: Record<string, string>): CheckIn {
     missingMetrics: (h.missingMetrics ? h.missingMetrics.split(",") : []) as MetricKey[],
     followUpUsed: h.followUpUsed === "true",
     patientQuote: str(h.patientQuote),
+    trackedParameters: h.trackedParameters ? JSON.parse(h.trackedParameters) : undefined,
     trackedFindings: h.trackedFindings ? JSON.parse(h.trackedFindings) : undefined,
   };
 }
 
 // ----- Patient -----
 export async function setPatient(p: Patient) {
-  await redis.hSet(kPatient(p.id), {
+  const multi = redis.multi();
+  multi.hSet(kPatient(p.id), {
     name: p.name,
+    dob: p.dob,
     diagnosis: p.diagnosis,
     lastAppointment: p.lastAppointment,
     nextAppointment: p.nextAppointment,
   });
+  multi.hSet(kPatientIdentity, normalizeIdentity(p.name, p.dob), p.id);
+  multi.sAdd(kPatients, p.id);
+  await multi.exec();
 }
 
 export async function getPatient(id: string): Promise<Patient | null> {
@@ -88,10 +97,32 @@ export async function getPatient(id: string): Promise<Patient | null> {
   return {
     id,
     name: h.name,
+    dob: h.dob,
     diagnosis: h.diagnosis,
     lastAppointment: h.lastAppointment,
     nextAppointment: h.nextAppointment,
   };
+}
+
+export async function getPatients(): Promise<Patient[]> {
+  const ids = await redis.sMembers(kPatients);
+  const patients = await Promise.all(ids.map((id) => getPatient(id)));
+  return patients.filter((patient): patient is Patient => patient !== null);
+}
+
+function normalizeIdentity(name: string, dob: string): string {
+  const normalizedName = name
+    .normalize("NFKC")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("en-US");
+  return `${normalizedName}|${dob.trim()}`;
+}
+
+export async function findPatientByIdentity(name: string, dob: string): Promise<Patient | null> {
+  const id = await redis.hGet(kPatientIdentity, normalizeIdentity(name, dob));
+  if (!id) return null;
+  return getPatient(id);
 }
 
 // ----- Check-ins -----

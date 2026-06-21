@@ -1,28 +1,9 @@
 import { useEffect, useRef } from "react";
-import type { ChecklistState, MetricKey } from "../../../shared/types";
-
-const LABELS: Record<MetricKey, string> = {
-  pain: "Pain level",
-  fatigue: "Fatigue",
-  swelling: "Swelling",
-  morningStiffness: "Morning stiffness",
-  medicationAdherence: "Medication",
-};
-
-// Short labels for the compact horizontal rail (mobile focal layout).
-const SHORT: Record<MetricKey, string> = {
-  pain: "Pain",
-  fatigue: "Fatigue",
-  swelling: "Swelling",
-  morningStiffness: "Stiffness",
-  medicationAdherence: "Meds",
-};
-
-const ORDER: MetricKey[] = ["pain", "fatigue", "swelling", "morningStiffness", "medicationAdherence"];
+import type { ChecklistState } from "../../../shared/types";
 
 type Status = "confirmed" | "optimistic" | "missing";
 
-function statusOf(state: ChecklistState, key: MetricKey): Status {
+function statusOf(state: ChecklistState, key: string): Status {
   if (state.confirmed.includes(key)) return "confirmed";
   // Amber = transient keyword hit OR a vague mention awaiting clarification.
   if (state.optimistic.includes(key) || state.ambiguous.includes(key)) return "optimistic";
@@ -34,16 +15,18 @@ function statusOf(state: ChecklistState, key: MetricKey): Status {
 // the default vertical list is kept for any wider/sidebar usage.
 export default function LiveChecklist({
   state,
+  topics,
   layout = "list",
 }: {
   state: ChecklistState;
+  topics: string[];
   layout?: "list" | "rail";
 }) {
-  if (layout === "rail") return <RailChecklist state={state} />;
+  if (layout === "rail") return <RailChecklist state={state} topics={topics} />;
 
   return (
     <ul className="w-full space-y-2">
-      {ORDER.map((key) => {
+      {topics.map((key) => {
         const status = statusOf(state, key);
         const confirmed = status === "confirmed";
         const optimistic = status === "optimistic";
@@ -64,7 +47,7 @@ export default function LiveChecklist({
                 confirmed ? "text-indigo-800" : optimistic ? "text-amber-800" : "text-ink-400"
               }`}
             >
-              {LABELS[key]}
+              {key}
             </span>
           </li>
         );
@@ -76,8 +59,8 @@ export default function LiveChecklist({
 // Single-row, horizontally scrollable chip rail. Height stays constant no matter
 // how many topics there are; the first uncovered topic (the current focus) is
 // auto-scrolled into view so it's never hidden off-screen.
-function RailChecklist({ state }: { state: ChecklistState }) {
-  const activeKey = ORDER.find((k) => statusOf(state, k) !== "confirmed");
+function RailChecklist({ state, topics }: { state: ChecklistState; topics: string[] }) {
+  const activeKey = topics.find((k) => statusOf(state, k) !== "confirmed");
   const activeRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -86,7 +69,7 @@ function RailChecklist({ state }: { state: ChecklistState }) {
 
   return (
     <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {ORDER.map((key) => {
+      {topics.map((key) => {
         const status = statusOf(state, key);
         const cls =
           status === "confirmed"
@@ -101,7 +84,7 @@ function RailChecklist({ state }: { state: ChecklistState }) {
             className={`inline-flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full border text-[12px] font-medium whitespace-nowrap shrink-0 transition-all duration-300 ease-out ${cls}`}
           >
             <Dot status={status} />
-            {SHORT[key]}
+            {key}
           </span>
         );
       })}

@@ -22,6 +22,7 @@ await connectRedis();
 await setPatient({
   id:              PATIENT_ID,
   name:            "Preston A Tjandra",
+  dob:             "1994-06-07",
   diagnosis:       "Chronic Pain",
   lastAppointment: "2026-06-01",
   nextAppointment: "2026-12-04",

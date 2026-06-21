@@ -1,7 +1,8 @@
 {
   "patient": {
     "id": "demo-sarah-chen-ra",
-    "name": "Sarah Chen",
+    "name": "Kelley Liang",
+    "dob": "1987-01-14",
     "diagnosis": "Rheumatoid Arthritis",
     "lastAppointment": "2025-10-03",
     "nextAppointment": "2025-11-14"

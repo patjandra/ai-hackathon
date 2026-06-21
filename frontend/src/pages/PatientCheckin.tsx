@@ -1,12 +1,12 @@
-import { useCallback, useRef, useState } from "react";
-import { api, DEMO_PATIENT_ID } from "../lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api } from "../lib/api";
 import { useChecklist } from "../hooks/useChecklist";
 import { useDeepgram } from "../hooks/useDeepgram";
 import LiveChecklist from "../components/LiveChecklist";
 import AIConversation from "../components/AIConversation";
 import VoiceRecorder from "../components/VoiceRecorder";
 import type { ChatMessage } from "../components/AIConversation";
-import type { MetricKey } from "../../../shared/types";
+import type { Patient } from "../../../shared/types";
 
 type Phase = "ready" | "recording" | "processing" | "followup" | "done";
 type Mode = "voice" | "text";
@@ -21,7 +21,7 @@ const DOCTOR = "Dr. Miller";
 // precise detail question if they confirm but don't give a specific value. The
 // stage advances per re-ask of the same metric (see askStage below). A "no" to a
 // presence question records the metric as absent server-side, so we move on.
-const FOLLOWUP_STEPS: Record<MetricKey, string[]> = {
+const FOLLOWUP_STEPS: Record<string, string[]> = {
   pain: [
     "Have you had any joint pain today?",
     "On a scale of 0 to 10, what number best matches that pain?",
@@ -33,11 +33,11 @@ const FOLLOWUP_STEPS: Record<MetricKey, string[]> = {
     "Did you notice any joint swelling today?",
     "Would you say that swelling is mild or significant?",
   ],
-  morningStiffness: [
+  "morning stiffness": [
     "Did you wake up with any stiffness this morning?",
     "About how many minutes did it last before it eased up?",
   ],
-  medicationAdherence: [
+  "medication adherence": [
     "Were you able to take your medication today?",
     "Did you take the full dose exactly as prescribed, yes or no?",
   ],
@@ -45,8 +45,19 @@ const FOLLOWUP_STEPS: Record<MetricKey, string[]> = {
 
 const GREETING = "Hi! Tell me how you've been feeling since your last visit.";
 const newGreeting = (): ChatMessage => ({ id: "greeting", role: "ai", text: GREETING });
+const PATIENT_STORAGE_KEY = "interim.patient";
 
 export default function PatientCheckin() {
+  const [patient, setPatient] = useState<Patient | null>(() => {
+    try {
+      const saved = localStorage.getItem(PATIENT_STORAGE_KEY);
+      return saved ? JSON.parse(saved) as Patient : null;
+    } catch {
+      return null;
+    }
+  });
+  const [topics, setTopics] = useState<string[]>([]);
+  const [topicsLoading, setTopicsLoading] = useState(true);
   const [phase, setPhase] = useState<Phase>("ready");
   const [mode, setMode] = useState<Mode>("voice");
   const [checkinId, setCheckinId] = useState<string | null>(null);
@@ -56,7 +67,7 @@ export default function PatientCheckin() {
   const [lastQuestion, setLastQuestion] = useState<string | null>(null);
   // How many times we've asked about each metric, so staged follow-ups escalate
   // from the presence question to the precise detail question.
-  const askCount = useRef<Partial<Record<MetricKey, number>>>({});
+  const askCount = useRef<Record<string, number>>({});
   // True once the check-in has been completed at least once, so later updates
   // (when symptoms change) get an "updated" confirmation rather than the first-time one.
   const completedOnce = useRef(false);
@@ -64,7 +75,7 @@ export default function PatientCheckin() {
   const addMsg = (role: ChatMessage["role"], text: string) =>
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role, text }]);
 
-  const { state, scanInterim, applyConfirmed, clearOptimistic, reset } = useChecklist();
+  const { state, scanInterim, applyConfirmed, clearOptimistic, reset } = useChecklist(topics);
 
   const onInterim = useCallback(
     (t: string) => {
@@ -76,9 +87,44 @@ export default function PatientCheckin() {
 
   const { recording, start, stop } = useDeepgram({ onInterim });
 
+  useEffect(() => {
+    if (!patient) {
+      setTopics([]);
+      setTopicsLoading(false);
+      return;
+    }
+
+    const canRefresh = phase === "ready" || phase === "done";
+    if (!canRefresh) return;
+
+    let active = true;
+    const loadTopics = (showLoading = false) => {
+      if (showLoading) setTopicsLoading(true);
+      api.getTrackedParams(patient.id)
+        .then((result) => {
+          if (active) setTopics(result.parameters);
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (active && showLoading) setTopicsLoading(false);
+        });
+    };
+
+    loadTopics(topics.length === 0);
+    const refreshOnFocus = () => loadTopics();
+    const interval = window.setInterval(() => loadTopics(), 3000);
+    window.addEventListener("focus", refreshOnFocus);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
+  }, [patient, phase]);
+
   // Brand-new check-in: clear everything, restart the thread.
   const beginFresh = async () => {
     reset();
+    setCheckinId(null);
     askCount.current = {};
     completedOnce.current = false;
     setMessages([newGreeting()]);
@@ -119,24 +165,27 @@ export default function PatientCheckin() {
     try {
       // Resolve the id locally — state updates are async.
       let id = checkinId;
-      let covered: MetricKey[];
-      let missing: MetricKey[];
-      let ambiguous: MetricKey[];
+      let covered: string[];
+      let missing: string[];
+      let ambiguous: string[];
 
       if (!id) {
-        const r = await api.checkin(DEMO_PATIENT_ID, transcript);
+        if (!patient) throw new Error("No patient selected");
+        const r = await api.checkin(patient.id, transcript);
         id = r.checkinId;
         setCheckinId(id);
-        covered = r.coveredMetrics as MetricKey[];
-        missing = r.missingMetrics as MetricKey[];
-        ambiguous = (r.ambiguousMetrics ?? []) as MetricKey[];
+        setTopics(r.requiredTopics);
+        covered = r.coveredTopics;
+        missing = r.missingTopics;
+        ambiguous = r.ambiguousTopics;
       } else {
         // Pass the question we just asked so short replies ("yes", "6", "high")
         // are interpreted in context and attributed to the right metric.
         const r = await api.followup(id, transcript, lastQuestion ?? undefined);
-        covered = r.coveredMetrics as MetricKey[];
-        missing = r.missingMetrics as MetricKey[];
-        ambiguous = (r.ambiguousMetrics ?? []) as MetricKey[];
+        setTopics(r.requiredTopics);
+        covered = r.coveredTopics;
+        missing = r.missingTopics;
+        ambiguous = r.ambiguousTopics;
       }
 
       applyConfirmed(covered, missing, ambiguous);
@@ -156,9 +205,12 @@ export default function PatientCheckin() {
         const target = missing.find((m) => ambiguous.includes(m)) ?? missing[0];
         // Escalate: stage = how many times we've already asked this metric,
         // clamped to the last (detail) question so it never overflows.
-        const steps = FOLLOWUP_STEPS[target];
-        const stage = Math.min(askCount.current[target] ?? 0, steps.length - 1);
-        askCount.current[target] = (askCount.current[target] ?? 0) + 1;
+        const normalizedTarget = target.toLocaleLowerCase("en-US");
+        const steps = FOLLOWUP_STEPS[normalizedTarget] ?? [
+          `How has your ${target.toLocaleLowerCase("en-US")} been since your last check-in?`,
+        ];
+        const stage = Math.min(askCount.current[normalizedTarget] ?? 0, steps.length - 1);
+        askCount.current[normalizedTarget] = (askCount.current[normalizedTarget] ?? 0) + 1;
         const q = steps[stage];
         setLastQuestion(q); // remember for context on the next reply
         addMsg("ai", q);
@@ -188,6 +240,26 @@ export default function PatientCheckin() {
 
   const isInputPhase = phase === "ready" || phase === "followup";
 
+  const handleLogin = (matched: Patient) => {
+    localStorage.setItem(PATIENT_STORAGE_KEY, JSON.stringify(matched));
+    setPatient(matched);
+  };
+
+  const logout = () => {
+    localStorage.removeItem(PATIENT_STORAGE_KEY);
+    setPatient(null);
+    setTopics([]);
+    setCheckinId(null);
+    setMessages([newGreeting()]);
+    setLiveTranscript("");
+    setDraftText("");
+    setLastQuestion(null);
+    setPhase("ready");
+    reset();
+  };
+
+  if (!patient) return <PatientLogin onLogin={handleLogin} />;
+
   return (
     <div className="min-h-[100dvh] flex justify-center px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="w-full max-w-md">
@@ -197,11 +269,25 @@ export default function PatientCheckin() {
             alt="Interim"
             className="h-14 w-auto mb-2"
           />
-          <p className="text-sm text-ink-400">Check-in for {DOCTOR}</p>
+          <p className="text-sm text-ink-600 font-medium">Welcome, {patient.name}</p>
+          <p className="text-sm text-ink-400">
+            Condition: {patient.diagnosis} | Check-in for {DOCTOR}
+          </p>
+          <button
+            type="button"
+            onClick={logout}
+            className="mt-1.5 text-[12px] font-medium text-ink-400 hover:text-indigo-600 transition-colors"
+          >
+            Log out
+          </button>
         </header>
 
         {/* Input area: mic (voice) or composer (text); shared processing/done */}
-        {mode === "text" && isInputPhase ? (
+        {topicsLoading ? (
+          <div className="flex justify-center py-10 text-sm text-ink-400">
+            Loading today&rsquo;s topics…
+          </div>
+        ) : mode === "text" && isInputPhase ? (
           <TextComposer
             value={draftText}
             onChange={setDraftText}
@@ -237,10 +323,10 @@ export default function PatientCheckin() {
             <div className="flex items-center justify-between mb-2">
               <span className="eyebrow">Today&rsquo;s topics</span>
               <span className="text-[11px] font-medium text-ink-400">
-                {state.confirmed.length}/{Object.keys(FOLLOWUP_STEPS).length} covered
+                {state.confirmed.length}/{topics.length} covered
               </span>
             </div>
-            <LiveChecklist state={state} layout="rail" />
+            <LiveChecklist state={state} topics={topics} layout="rail" />
           </div>
         </div>
 
@@ -249,6 +335,75 @@ export default function PatientCheckin() {
           typing={phase === "processing"}
           draft={phase === "recording" ? liveTranscript : ""}
         />
+      </div>
+    </div>
+  );
+}
+
+function PatientLogin({ onLogin }: { onLogin: (patient: Patient) => void }) {
+  const [name, setName] = useState("");
+  const [dob, setDob] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      onLogin(await api.loginPatient(name, dob));
+    } catch {
+      setError("We couldn't find a patient with that name and date of birth.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-[100dvh] grid place-items-center px-4 py-8">
+      <div className="w-full max-w-md">
+        <header className="text-center mb-6">
+          <img src="/interim-wordmark.png" alt="Interim" className="h-14 w-auto mx-auto mb-3" />
+          <h1 className="text-xl font-semibold text-ink-900">Patient check-in</h1>
+          <p className="text-sm text-ink-500 mt-1">Enter your information to continue.</p>
+        </header>
+
+        <form onSubmit={submit} className="card p-5 space-y-4">
+          <label className="block">
+            <span className="text-[13px] font-medium text-ink-700">Full name</span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoComplete="name"
+              placeholder="e.g. Kelley Liang"
+              className="mt-1.5 w-full px-4 py-3 border border-clay rounded-2xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+            />
+          </label>
+          <label className="block">
+            <span className="text-[13px] font-medium text-ink-700">Date of birth</span>
+            <input
+              type="date"
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+              autoComplete="bday"
+              className="mt-1.5 w-full px-4 py-3 border border-clay rounded-2xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+            />
+          </label>
+
+          {error && (
+            <p className="text-[13px] text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || !name.trim() || !dob}
+            className="w-full py-3 rounded-full bg-indigo-500 text-white text-sm font-medium hover:bg-indigo-600 disabled:opacity-40 transition-colors"
+          >
+            {loading ? "Finding your account…" : "Continue"}
+          </button>
+        </form>
       </div>
     </div>
   );

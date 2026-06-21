@@ -22,6 +22,7 @@ export default function TrackedParameters({ patientId }: { patientId: string }) 
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   useEffect(() => {
     api.getTrackedParams(patientId)
@@ -42,10 +43,24 @@ export default function TrackedParameters({ patientId }: { patientId: string }) 
 
   const addCustom = () => {
     const t = customInput.trim();
-    if (!t || selected.includes(t)) return;
+    if (!t || selected.some((item) => item.toLocaleLowerCase() === t.toLocaleLowerCase())) return;
     setSelected((s) => [...s, t]);
     setCustomInput("");
     setDirty(true);
+  };
+
+  const removeCustom = async (param: string) => {
+    const next = selected.filter((item) => item !== param);
+    setPendingDelete(null);
+    setSaving(true);
+    try {
+      const result = await api.setTrackedParams(patientId, next);
+      setSelected(result.parameters);
+      setSavedAt(new Date().toISOString());
+      setDirty(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSave = async () => {
@@ -73,7 +88,7 @@ export default function TrackedParameters({ patientId }: { patientId: string }) 
         </p>
       </div>
 
-      {/* Common metrics grid */}
+      {/* Standard and doctor-added parameters share one consistent grid. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2.5 mb-4">
         {COMMON.map((metric) => (
           <label key={metric} className="flex items-center gap-2.5 cursor-pointer group">
@@ -88,28 +103,97 @@ export default function TrackedParameters({ patientId }: { patientId: string }) 
             </span>
           </label>
         ))}
-      </div>
-
-      {/* Custom params added by doctor */}
-      {customParams.length > 0 && (
-        <div className="mb-3 space-y-2">
-          {customParams.map((param) => (
-            <div key={param} className="flex items-center gap-2.5">
+        {customParams.map((param) => (
+          <div key={param} className="group flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <input
                 type="checkbox"
                 checked
-                onChange={() => toggle(param)}
-                className="w-4 h-4 rounded border-clay accent-indigo-500 cursor-pointer"
+                readOnly
+                tabIndex={-1}
+                className="w-4 h-4 rounded border-clay accent-indigo-500 pointer-events-none"
               />
-              <span className="text-[13px] text-ink-700 flex-1">{param}</span>
+              <span className="text-[13px] text-ink-700 truncate">{param}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPendingDelete(param)}
+              title={`Delete ${param}`}
+              aria-label={`Delete ${param}`}
+              className="shrink-0 p-1 rounded-md text-rose-500 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-rose-50 hover:text-rose-700 transition-all"
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="M19 6l-1 14H6L5 6" />
+                <path d="M10 11v5M14 11v5" />
+              </svg>
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-ink-900/20 backdrop-blur-[2px] px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-parameter-title"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setPendingDelete(null);
+          }}
+        >
+          <div className="card w-full max-w-xs p-5 text-center shadow-xl animate-fade-up">
+            <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-rose-50 text-rose-500 grid place-items-center">
+              <svg
+                className="w-5 h-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="M19 6l-1 14H6L5 6" />
+                <path d="M10 11v5M14 11v5" />
+              </svg>
+            </div>
+            <h3 id="delete-parameter-title" className="text-[15px] font-semibold text-ink-900">
+              Remove parameter?
+            </h3>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-ink-500">
+              <span className="font-medium text-ink-700">{pendingDelete}</span> will no longer
+              appear in the patient&rsquo;s check-in topics.
+            </p>
+            <div className="flex gap-2 mt-5">
               <button
-                onClick={() => toggle(param)}
-                className="text-[11px] text-rose-400 hover:text-rose-600 transition-colors"
+                type="button"
+                onClick={() => setPendingDelete(null)}
+                className="flex-1 px-4 py-2 rounded-xl border border-clay text-[13px] font-medium text-ink-600 hover:bg-sand transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => removeCustom(pendingDelete)}
+                className="flex-1 px-4 py-2 rounded-xl bg-rose-500 text-white text-[13px] font-medium hover:bg-rose-600 transition-colors"
               >
                 Remove
               </button>
             </div>
-          ))}
+          </div>
         </div>
       )}
 
@@ -124,7 +208,10 @@ export default function TrackedParameters({ patientId }: { patientId: string }) 
         />
         <button
           onClick={addCustom}
-          disabled={!customInput.trim() || selected.includes(customInput.trim())}
+          disabled={
+            !customInput.trim() ||
+            selected.some((item) => item.toLocaleLowerCase() === customInput.trim().toLocaleLowerCase())
+          }
           className="px-4 py-2 rounded-xl border border-clay text-[13px] text-ink-600 hover:bg-sand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           Add

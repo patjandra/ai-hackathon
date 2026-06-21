@@ -1,44 +1,51 @@
 import { useState, useCallback } from "react";
-import type { ChecklistState, MetricKey } from "../../../shared/types";
+import type { ChecklistState } from "../../../shared/types";
 
 // Phase 1 optimistic highlighting vocabulary. Distinctive, low-ambiguity terms
 // only — this is a "feels responsive" hint, and Claude confirms the truth in
 // Phase 2. Ambiguous words (bare digits, "morning", "ten", "energy") are left
 // out so they don't trip the wrong row.
-const METRIC_KEYWORDS: Record<MetricKey, string[]> = {
+const TOPIC_KEYWORDS: Record<string, string[]> = {
   pain: ["pain", "painful", "hurt", "hurts", "hurting", "ache", "aches", "aching", "sore", "throbbing"],
   fatigue: ["tired", "fatigue", "fatigued", "exhausted", "exhaustion", "drained", "worn out", "no energy", "low energy"],
   swelling: ["swelling", "swollen", "puffy", "inflamed", "inflammation"],
-  morningStiffness: ["stiff", "stiffness", "morning stiffness", "stiff in the morning"],
-  medicationAdherence: ["medication", "meds", "pill", "pills", "dose", "doses", "took my", "missed my", "missed a", "forgot", "skipped"],
+  "morning stiffness": ["stiff", "stiffness", "morning stiffness", "stiff in the morning"],
+  "medication adherence": ["medication", "meds", "pill", "pills", "dose", "doses", "took my", "missed my", "missed a", "forgot", "skipped"],
+  "sleep quality": ["sleep", "slept", "insomnia", "rested", "restful"],
+  mood: ["mood", "anxious", "anxiety", "sad", "happy", "depressed", "stress", "stressed"],
+  mobility: ["mobility", "walking", "walk", "moving", "movement"],
+  nausea: ["nausea", "nauseous", "sick to my stomach"],
+  "exercise compliance": ["exercise", "workout", "worked out", "physical therapy"],
 };
 
 // Match whole words/phrases (not substrings) so "tender" can't trip "ten".
 const wordRe = (kw: string) => new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
 
 // No API call — runs on every interim transcript, instant.
-export function optimisticHighlight(transcript: string): MetricKey[] {
+export function optimisticHighlight(transcript: string, topics: string[]): string[] {
   const lower = transcript.toLowerCase();
-  return (Object.entries(METRIC_KEYWORDS) as [MetricKey, string[]][])
-    .filter(([, kws]) => kws.some((kw) => wordRe(kw).test(lower)))
-    .map(([metric]) => metric);
+  return topics.filter((topic) => {
+    const normalized = topic.toLocaleLowerCase("en-US");
+    const keywords = TOPIC_KEYWORDS[normalized] ?? [normalized];
+    return keywords.some((kw) => wordRe(kw).test(lower));
+  });
 }
 
 const EMPTY: ChecklistState = { optimistic: [], ambiguous: [], confirmed: [], missing: [] };
 
-export function useChecklist() {
+export function useChecklist(topics: string[]) {
   const [state, setState] = useState<ChecklistState>(EMPTY);
 
   // Phase 1: union new optimistic hits with what we've already lit up.
   const scanInterim = useCallback((transcript: string) => {
-    const hits = optimisticHighlight(transcript);
+    const hits = optimisticHighlight(transcript, topics);
     setState((s) => ({ ...s, optimistic: Array.from(new Set([...s.optimistic, ...hits])) }));
-  }, []);
+  }, [topics]);
 
   // Phase 2: Claude's confirmed truth wins. Ambiguous metrics accumulate and
   // stay amber until they're confirmed (i.e. no longer missing).
   const applyConfirmed = useCallback(
-    (confirmed: MetricKey[], missing: MetricKey[], ambiguous: MetricKey[]) => {
+    (confirmed: string[], missing: string[], ambiguous: string[]) => {
       setState((s) => {
         const persisted = Array.from(new Set([...s.ambiguous, ...ambiguous])).filter((k) =>
           missing.includes(k),

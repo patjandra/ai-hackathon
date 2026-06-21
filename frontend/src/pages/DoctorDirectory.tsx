@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DEMO_PATIENTS, type DemoPatient, type InterimStatus } from "../lib/patients";
+import { api } from "../lib/api";
+import type { Patient } from "../../../shared/types";
 import DoctorTopBar from "../components/DoctorTopBar";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -79,6 +81,20 @@ const SORT_LABELS: Record<SortKey, string> = {
   "status":     "Status",
 };
 
+function directoryPatient(patient: Patient): DemoPatient {
+  return {
+    id: patient.id,
+    name: patient.name,
+    dob: patient.dob,
+    condition: patient.diagnosis,
+    nextVisit: patient.nextAppointment,
+    checkInCount: 0,
+    lastCheckIn: null,
+    interimGeneratedAt: null,
+    status: "no-checkins",
+  };
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export default function DoctorDirectory() {
@@ -87,13 +103,29 @@ export default function DoctorDirectory() {
   const [activeFilter, setFilter]  = useState<FilterKey>("all");
   const [sortBy,       setSortBy]  = useState<SortKey>("next-visit");
   const [page,         setPage]    = useState(1);
+  const [patients, setPatients] = useState<DemoPatient[]>(DEMO_PATIENTS);
+  const [creating, setCreating] = useState(false);
   const PAGE_SIZE = 25;
 
-  const total   = DEMO_PATIENTS.length;
-  const flagged = DEMO_PATIENTS.filter(p => p.alertFlagged).length;
+  useEffect(() => {
+    api.listPatients()
+      .then((stored) => {
+        setPatients((current) => {
+          const byId = new Map(current.map((patient) => [patient.id, patient]));
+          for (const patient of stored) {
+            if (!byId.has(patient.id)) byId.set(patient.id, directoryPatient(patient));
+          }
+          return Array.from(byId.values());
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  const total   = patients.length;
+  const flagged = patients.filter(p => p.alertFlagged).length;
 
   const filtered = sortPatients(
-    DEMO_PATIENTS.filter(p => {
+    patients.filter(p => {
       const q = query.toLowerCase();
       const matchQ = !q || p.name.toLowerCase().includes(q) ||
         p.condition.toLowerCase().includes(q) || fmtDOB(p.dob).toLowerCase().includes(q);
@@ -126,11 +158,20 @@ export default function DoctorDirectory() {
             <p className="eyebrow mb-1">Welcome, Dr. Miller, M.D.</p>
             <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Patient Directory</h1>
           </div>
-          <div className="text-right text-[13px] mt-1">
-            <span className="text-ink-500 font-medium">{total} patients</span>
-            {flagged > 0 && (
-              <span className="text-rose-600 font-semibold ml-2">{flagged} flagged</span>
-            )}
+          <div className="flex items-center gap-4">
+            <div className="text-right text-[13px]">
+              <span className="text-ink-500 font-medium">{total} patients</span>
+              {flagged > 0 && (
+                <span className="text-rose-600 font-semibold ml-2">{flagged} flagged</span>
+              )}
+            </div>
+            <button
+              onClick={() => setCreating(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-500 text-white text-[13px] font-medium hover:bg-indigo-600 shadow-sm transition-colors"
+            >
+              <span className="text-base leading-none">+</span>
+              New patient
+            </button>
           </div>
         </div>
 
@@ -298,6 +339,121 @@ export default function DoctorDirectory() {
 
       </div>
       </main>
+      {creating && (
+        <NewPatientModal
+          onClose={() => setCreating(false)}
+          onCreated={(patient) => {
+            setPatients((current) => [...current, directoryPatient(patient)]);
+            setCreating(false);
+            navigate(`/doctor/${patient.id}`);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function NewPatientModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (patient: Patient) => void;
+}) {
+  const [form, setForm] = useState({
+    name: "",
+    dob: "",
+    diagnosis: "",
+    lastAppointment: "",
+    nextAppointment: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const update = (field: keyof typeof form, value: string) =>
+    setForm((current) => ({ ...current, [field]: value }));
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      onCreated(await api.createPatient(form));
+    } catch (err) {
+      setError(String(err).includes("409") ? "A patient with this name and date of birth already exists." : "Could not create the patient.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-ink-900/20 backdrop-blur-[2px] px-4 py-8"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="new-patient-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <form onSubmit={submit} className="card w-full max-w-md p-6 shadow-xl animate-fade-up">
+        <div className="flex items-start justify-between gap-4 mb-5">
+          <div>
+            <p className="eyebrow mb-1">Patient directory</p>
+            <h2 id="new-patient-title" className="text-lg font-semibold text-ink-900">Create new patient</h2>
+          </div>
+          <button type="button" onClick={onClose} className="text-ink-400 hover:text-ink-700 text-xl leading-none">×</button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Full name" value={form.name} onChange={(v) => update("name", v)} span />
+          <Field label="Date of birth" type="date" value={form.dob} onChange={(v) => update("dob", v)} />
+          <Field label="Condition" value={form.diagnosis} onChange={(v) => update("diagnosis", v)} />
+          <Field label="Last appointment" type="date" value={form.lastAppointment} onChange={(v) => update("lastAppointment", v)} />
+          <Field label="Next appointment" type="date" value={form.nextAppointment} onChange={(v) => update("nextAppointment", v)} />
+        </div>
+
+        {error && <p className="mt-3 text-[13px] text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">{error}</p>}
+
+        <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-clay">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl border border-clay text-[13px] font-medium text-ink-600 hover:bg-sand">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving || Object.values(form).some((value) => !value.trim())}
+            className="px-5 py-2 rounded-xl bg-indigo-500 text-white text-[13px] font-medium hover:bg-indigo-600 disabled:opacity-40"
+          >
+            {saving ? "Creating…" : "Create patient"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+  span = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  span?: boolean;
+}) {
+  return (
+    <label className={span ? "col-span-2" : ""}>
+      <span className="text-[12px] font-medium text-ink-600">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 w-full px-3 py-2.5 border border-clay rounded-xl bg-white text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+      />
+    </label>
   );
 }

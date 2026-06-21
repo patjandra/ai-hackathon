@@ -27,7 +27,11 @@ export function combinedPrompt(transcript: string, trackedParams: string[] = [],
   const custom = trackedParams.filter((p) => !standard.has(p));
 
   const customSection = custom.length > 0
-    ? `\nAdditional tracked parameters assigned by this patient's doctor — listen for these too:\n${custom.map((p) => `- ${p}`).join("\n")}\n`
+    ? `\nAdditional tracked parameters assigned by this patient's doctor — listen for these too:
+${custom.map((p) => `- ${p}`).join("\n")}
+For each additional parameter, put a short, faithful summary of the patient's answer
+in trackedFindings. Use null only when they did not answer that topic. Do not invent
+scores or clinical interpretations.\n`
     : "";
 
   // Build the tracked_findings schema for the JSON output.

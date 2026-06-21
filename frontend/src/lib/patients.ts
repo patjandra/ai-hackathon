@@ -11,6 +11,9 @@ export interface DemoPatient {
   interimGeneratedAt: string | null;  // ISO datetime
   status: InterimStatus;
   newCheckInsSinceInterim?: number;
+  // Anomaly flag — seeded for demo; overridden by real API data when available
+  alertFlagged?: boolean;
+  alertReason?: string;
 }
 
 export const DEMO_PATIENTS: DemoPatient[] = [
@@ -24,6 +27,8 @@ export const DEMO_PATIENTS: DemoPatient[] = [
     lastCheckIn: "2025-11-13T10:00:00Z",
     interimGeneratedAt: "2025-11-13T14:00:00Z",
     status: "ready",
+    alertFlagged: true,
+    alertReason: "Pain severity spiked to 8/10, up from a recent average of 4",
   },
   {
     id: "michael-lee-cp",
@@ -36,6 +41,8 @@ export const DEMO_PATIENTS: DemoPatient[] = [
     interimGeneratedAt: "2025-11-17T09:00:00Z",
     status: "needs-review",
     newCheckInsSinceInterim: 3,
+    alertFlagged: true,
+    alertReason: "Medication non-adherence flagged in 2 of the last 5 check-ins",
   },
   {
     id: "ava-patel-ms",

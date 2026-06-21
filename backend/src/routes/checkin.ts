@@ -4,10 +4,15 @@ import { callText, EXTRACTION_MODEL, parseJsonResponse } from "../services/claud
 import { combinedPrompt, type CombinedResult } from "../prompts/combined.js";
 import {
   completeCheckin,
+  getAlert,
   getCheckin,
+  getCheckinsSince,
+  getPatient,
   getTrackedParams,
   saveInProgress,
+  setAlert,
 } from "../services/redis.js";
+import { detectAnomalies } from "../services/anomaly.js";
 import type { CheckIn, CheckInMetrics, MetricKey } from "../../../shared/types.js";
 
 const router = Router();
@@ -120,6 +125,22 @@ router.post("/:id/complete", async (req, res) => {
   const existing = await getCheckin(req.params.id);
   if (!existing) return res.status(404).json({ error: "checkin_not_found" });
   await completeCheckin(existing, Date.parse(existing.date));
+
+  // Run anomaly detection after saving and store the result non-blocking
+  (async () => {
+    try {
+      const patient = await getPatient(existing.patientId);
+      if (patient) {
+        const sinceMs = Date.parse(patient.lastAppointment);
+        const history = await getCheckinsSince(existing.patientId, sinceMs);
+        const result = detectAnomalies(history);
+        await setAlert(existing.patientId, result);
+      }
+    } catch (e) {
+      console.error("[anomaly]", e);
+    }
+  })();
+
   res.json({ checkinId: existing.id, saved: true });
 });
 

@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { getPatient } from "../lib/patients";
 import type { CheckIn, PhysicianSummary } from "../../../shared/types";
 import StatusBadge from "../components/StatusBadge";
+import FlagBadge from "../components/FlagBadge";
 import TrackedParameters from "../components/TrackedParameters";
 import WhyThisVisitMatters from "../components/WhyThisVisitMatters";
 import SummaryCard from "../components/SummaryCard";
@@ -71,6 +72,7 @@ export default function DoctorDashboard() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
   const [regen, setRegen]       = useState(false);
+  const [anomaly, setAnomaly]   = useState<{ flagged: boolean; reason: string | null } | null>(null);
 
   // Edit-mode state (session-only — intentionally scoped down)
   const [editing, setEditing]     = useState(false);
@@ -98,7 +100,11 @@ export default function DoctorDashboard() {
     }
   };
 
-  useEffect(() => { load(); }, [patientId]);
+  useEffect(() => {
+    load();
+    // Fetch anomaly status independently — non-blocking
+    api.getAnomaly(patientId).then(setAnomaly).catch(() => {});
+  }, [patientId]);
 
   const handleRegenerate = async () => {
     setRegen(true);
@@ -186,6 +192,7 @@ export default function DoctorDashboard() {
                 <div className="flex flex-wrap items-center gap-2 mb-0.5">
                   <h1 className="text-lg font-semibold tracking-tight text-ink-900">{patientName}</h1>
                   <StatusBadge status={interimStatus} />
+                  {(anomaly?.flagged ?? demo?.alertFlagged) && <FlagBadge />}
                 </div>
                 <p className="text-[13px] text-ink-500 leading-snug">
                   {patientDob && <>DOB: {fmtDate(patientDob)}<span className="mx-1.5 text-clay">·</span></>}
@@ -336,6 +343,17 @@ export default function DoctorDashboard() {
         {/* ── CASE: Interim exists (AI structured view) ── */}
         {!editing && !savedEdit && summary && (
           <>
+            {/* Anomaly flag banner — above Why This Visit Matters */}
+            {(anomaly?.flagged ?? demo?.alertFlagged) && (
+              <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-[13px] animate-fade-up">
+                <span className="text-base shrink-0">⚠</span>
+                <div>
+                  <span className="font-semibold">Anomaly detected · </span>
+                  {anomaly?.reason ?? demo?.alertReason ?? "Review this patient's recent check-ins."}
+                </div>
+              </div>
+            )}
+
             <div className="animate-fade-up" style={{ animationDelay: "80ms" }}>
               <WhyThisVisitMatters data={summary.whyThisVisitMatters} />
             </div>

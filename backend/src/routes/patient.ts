@@ -1,5 +1,13 @@
 import { Router } from "express";
-import { getCheckinsSince, getFullTrackedParams, getPatient, setTrackedParams } from "../services/redis.js";
+import {
+  getAlert,
+  getCheckinsSince,
+  getFullTrackedParams,
+  getPatient,
+  setAlert,
+  setTrackedParams,
+} from "../services/redis.js";
+import { detectAnomalies } from "../services/anomaly.js";
 
 const router = Router();
 
@@ -20,6 +28,29 @@ router.get("/:patientId/checkins", async (req, res) => {
   const sinceMs = Date.parse(since ?? patient.lastAppointment);
   const checkins = await getCheckinsSince(patientId, sinceMs);
   res.json(checkins);
+});
+
+// GET /api/patient/:patientId/anomaly
+// Computes + caches anomaly check on demand (also runs automatically post-complete).
+router.get("/:patientId/anomaly", async (req, res) => {
+  const { patientId } = req.params;
+  try {
+    // Return cached result if available
+    const cached = await getAlert(patientId);
+    if (cached) return res.json(cached);
+
+    // Otherwise compute fresh and cache it
+    const patient = await getPatient(patientId);
+    if (!patient) return res.status(404).json({ error: "patient_not_found" });
+    const sinceMs = Date.parse(patient.lastAppointment);
+    const history = await getCheckinsSince(patientId, sinceMs);
+    const result = detectAnomalies(history);
+    await setAlert(patientId, result);
+    res.json(result);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "anomaly_check_failed" });
+  }
 });
 
 // GET /api/patient/:patientId/parameters

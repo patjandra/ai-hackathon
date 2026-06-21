@@ -148,6 +148,23 @@ export async function clearSummaryCache(patientId: string) {
   await redis.del(kSummary(patientId));
 }
 
+// ----- Anomaly flag -----
+const kAlert = (id: string) => `alert:${id}`;
+
+export async function getAlert(patientId: string) {
+  const raw = await redis.get(kAlert(patientId));
+  return raw
+    ? (JSON.parse(raw) as { flagged: boolean; reason: string | null; checkedAt: string })
+    : null;
+}
+
+export async function setAlert(
+  patientId: string,
+  result: { flagged: boolean; reason: string | null; checkedAt: string },
+) {
+  await redis.set(kAlert(patientId), JSON.stringify(result));
+}
+
 // ----- Tracked parameters -----
 const DEFAULT_PARAMS = ["Pain", "Fatigue", "Sleep quality", "Mood", "Medication adherence"];
 

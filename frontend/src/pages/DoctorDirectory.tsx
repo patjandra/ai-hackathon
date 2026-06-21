@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DEMO_PATIENTS, type DemoPatient } from "../lib/patients";
 import StatusBadge from "../components/StatusBadge";
+import FlagBadge from "../components/FlagBadge";
 
 function fmt(iso: string) {
   return new Date(iso + "T12:00:00").toLocaleDateString("en-US", {
@@ -76,10 +77,11 @@ export default function DoctorDirectory() {
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  {/* Name + badge */}
+                  {/* Name + badges */}
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <span className="text-[15px] font-semibold text-ink-900">{patient.name}</span>
                     <StatusBadge status={patient.status} />
+                    {patient.alertFlagged && <FlagBadge />}
                   </div>
                   {/* DOB + condition */}
                   <p className="text-[13px] text-ink-500 mb-1.5">

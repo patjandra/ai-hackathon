@@ -42,6 +42,11 @@ export const api = {
 
   seed: () => fetch(`${API}/api/demo/seed`, { method: "POST" }).then((r) => j<{ patientId: string; dashboardUrl: string }>(r)),
 
+  getAnomaly: (patientId: string) =>
+    fetch(`${API}/api/patient/${patientId}/anomaly`)
+      .then((r) => j<{ flagged: boolean; reason: string | null; checkedAt: string }>(r))
+      .catch(() => ({ flagged: false, reason: null, checkedAt: "" })),
+
   getTrackedParams: (patientId: string) =>
     fetch(`${API}/api/patient/${patientId}/parameters`).then((r) =>
       j<{ patientId: string; parameters: string[]; assignedBy: string | null; assignedAt: string | null }>(r),

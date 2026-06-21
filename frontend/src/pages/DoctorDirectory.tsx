@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { DEMO_PATIENTS, type DemoPatient } from "../lib/patients";
 import StatusBadge from "../components/StatusBadge";
+import DoctorTopBar from "../components/DoctorTopBar";
 
 function fmt(iso: string) {
   return new Date(iso + "T12:00:00").toLocaleDateString("en-US", {
@@ -18,8 +18,15 @@ function subtext(p: DemoPatient): string {
 }
 
 export default function DoctorDirectory() {
-  const [query, setQuery] = useState("");
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const query = params.get("q") ?? "";
+  const setQuery = (v: string) => {
+    const next = new URLSearchParams(params);
+    if (v) next.set("q", v);
+    else next.delete("q");
+    setParams(next, { replace: true });
+  };
 
   const filtered = DEMO_PATIENTS.filter((p) => {
     const q = query.toLowerCase();
@@ -30,40 +37,44 @@ export default function DoctorDirectory() {
     );
   }).sort((a, b) => a.name.localeCompare(b.name));
 
+  const counts = {
+    review: DEMO_PATIENTS.filter((p) => p.status === "needs-review").length,
+    total: DEMO_PATIENTS.length,
+  };
+
   return (
-    <div className="min-h-screen px-5 py-8 lg:py-12">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen">
+      <DoctorTopBar value={query} onChange={setQuery} />
+      <main className="px-5 py-8 lg:py-10">
+      <div className="max-w-3xl mx-auto">
 
         {/* Header */}
-        <div className="mb-8 animate-fade-up">
-          <p className="eyebrow mb-1">Doctor</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Patient Directory</h1>
-          <p className="text-[13px] text-ink-500 mt-1">{DEMO_PATIENTS.length} patients</p>
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-6 animate-fade-up">
+          <div>
+            <p className="eyebrow mb-1">Doctor</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Patient Directory</h1>
+          </div>
+          <div className="flex items-center gap-2 text-[12px]">
+            {counts.review > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                {counts.review} need review
+              </span>
+            )}
+            <span className="px-2.5 py-1 rounded-full bg-sand text-ink-500 font-medium">
+              {counts.total} patients
+            </span>
+          </div>
         </div>
 
-        {/* Search */}
-        <div className="relative mb-6 animate-fade-up" style={{ animationDelay: "40ms" }}>
-          <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400 pointer-events-none"
-            fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-          </svg>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search patients by name, DOB, or condition…"
-            className="w-full pl-11 pr-4 py-3 border border-clay rounded-2xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 placeholder:text-ink-400"
-          />
-          {query && (
-            <button
-              onClick={() => setQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
+        {query && (
+          <p className="text-[12px] text-ink-400 mb-3 animate-fade-up">
+            Showing results for “<span className="font-medium text-ink-600">{query}</span>” ·{" "}
+            <button onClick={() => setQuery("")} className="underline underline-offset-2 hover:text-ink-700">
+              clear
             </button>
-          )}
-        </div>
+          </p>
+        )}
 
         {/* Patient list */}
         <div className="space-y-3">
@@ -109,6 +120,7 @@ export default function DoctorDirectory() {
           )}
         </div>
       </div>
+      </main>
     </div>
   );
 }

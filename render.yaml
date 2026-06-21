@@ -1,0 +1,36 @@
+# Render blueprint — single Node web service that builds the React frontend,
+# builds the Express backend, then serves the SPA + API + Deepgram WebSocket
+# from one origin. Redis is external (Redis Cloud via REDIS_URL).
+#
+# Deploy: push to GitHub, then in Render → New → Blueprint, point at this repo.
+# Render will prompt for every env var marked `sync: false` (the secrets).
+services:
+  - type: web
+    name: interim
+    runtime: node
+    plan: free
+    healthCheckPath: /health
+    buildCommand: >-
+      npm install --prefix frontend &&
+      npm run build --prefix frontend &&
+      npm install --prefix backend &&
+      npm run build --prefix backend
+    startCommand: node backend/dist/backend/src/index.js
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      # Secrets — Render prompts for these on first deploy (never committed).
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: TOKEN_COMPANY_API_KEY
+        sync: false
+      - key: ARIZE_SPACE_ID
+        sync: false
+      - key: ARIZE_API_KEY
+        sync: false

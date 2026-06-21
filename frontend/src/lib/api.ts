@@ -6,8 +6,19 @@ import type {
   PhysicianSummary,
 } from "../../../shared/types";
 
-const API = import.meta.env.VITE_API_BASE ?? "http://localhost:3001";
-export const WS_BASE = import.meta.env.VITE_WS_BASE ?? "ws://localhost:3001";
+// Default to SAME-ORIGIN: API calls go to `/api/...` and the websocket to
+// `/ws/...` on whatever host served the page. Vite proxies both to the backend
+// in dev (see vite.config.ts), so this works on localhost, over the LAN, and
+// through an HTTPS tunnel (wss:// is derived automatically). An explicit
+// VITE_API_BASE / VITE_WS_BASE still overrides if you point at a remote backend.
+const API = import.meta.env.VITE_API_BASE || "";
+
+function sameOriginWs(): string {
+  if (typeof window === "undefined") return "ws://localhost:3001";
+  const proto = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${proto}://${window.location.host}`;
+}
+export const WS_BASE = import.meta.env.VITE_WS_BASE || sameOriginWs();
 export const DEMO_PATIENT_ID = import.meta.env.VITE_DEMO_PATIENT_ID ?? "demo-sarah-chen-ra";
 
 async function j<T>(res: Response): Promise<T> {

@@ -3,6 +3,9 @@ import express from "express";
 import cors from "cors";
 import http from "http";
 import { WebSocketServer } from "ws";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import { existsSync } from "fs";
 
 import { initArize } from "./services/arize.js";
 import { connectRedis } from "./services/redis.js";
@@ -39,6 +42,28 @@ app.use("/api/checkin", checkinRouter);
 app.use("/api/summary", summaryRouter);
 app.use("/api/patient", patientRouter);
 app.use("/api/demo", demoRouter);
+
+// ── Serve the built frontend (single-origin production) ─────────────────────
+// In production the React SPA is bundled into frontend/dist and served from this
+// same Express app, so the browser only ever talks to one origin (API + WS too).
+// Probe a few candidate locations so it works whether run from repo root (Render)
+// or from the compiled dist tree.
+const here = dirname(fileURLToPath(import.meta.url));
+const clientDir = [
+  join(process.cwd(), "frontend/dist"), // cwd = repo root (Render start command)
+  join(here, "../../../../frontend/dist"), // backend/dist/backend/src -> repo/frontend/dist
+  join(here, "../../../frontend/dist"),
+].find((p) => existsSync(join(p, "index.html")));
+
+if (clientDir) {
+  app.use(express.static(clientDir));
+  // SPA fallback: any non-API, non-WS, non-health GET serves index.html so
+  // client-side routes (/patient, /doctor, /doctor/:id) load on hard refresh.
+  app.get(/^\/(?!api\/|ws\/|health).*/, (_req, res) => res.sendFile(join(clientDir, "index.html")));
+  console.log(`[static] serving frontend from ${clientDir}`);
+} else {
+  console.warn("[static] no frontend build found — running API only");
+}
 
 const server = http.createServer(app);
 

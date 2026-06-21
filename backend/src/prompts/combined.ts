@@ -10,6 +10,7 @@ export interface CombinedResult {
     morning_stiffness: { value: number | null; confidence: string | null; raw: string | null };
     medication_adherence: { value: string | null; confidence: string | null; raw: string | null };
   };
+  trackedFindings: Record<string, string | null>;
   coveredMetrics: string[];
   missingMetrics: string[];
   ambiguousMetrics: string[];
@@ -17,24 +18,39 @@ export interface CombinedResult {
   patientQuote: string | null;
 }
 
-export function combinedPrompt(transcript: string): string {
-  return `You are a clinical check-in assistant for a rheumatology practice.
+// Standard 5 RA metrics always extracted regardless of patient settings.
+const STANDARD_KEYS = ["pain", "fatigue", "swelling", "morning_stiffness", "medication_adherence"];
 
-The doctor requires these metrics:
+export function combinedPrompt(transcript: string, trackedParams: string[] = []): string {
+  // Custom params = anything the doctor assigned beyond the standard 5.
+  const standard = new Set(["Pain", "Fatigue", "Swelling", "Morning stiffness", "Medication adherence"]);
+  const custom = trackedParams.filter((p) => !standard.has(p));
+
+  const customSection = custom.length > 0
+    ? `\nAdditional tracked parameters assigned by this patient's doctor — listen for these too:\n${custom.map((p) => `- ${p}`).join("\n")}\n`
+    : "";
+
+  // Build the tracked_findings schema for the JSON output.
+  const trackedFindingsSchema = custom.length > 0
+    ? `  "trackedFindings": {\n${custom.map((p) => `    "${p}": null`).join(",\n")}\n  },`
+    : `  "trackedFindings": {},`;
+
+  return `You are a clinical check-in assistant.
+
+Standard metrics to always extract:
 - pain level: 0-10
 - fatigue: low / moderate / high (the LEVEL OF FATIGUE). If the patient describes
   their ENERGY instead, invert it: high energy = "low" fatigue, low energy = "high"
   fatigue, moderate energy = "moderate" fatigue.
 - swelling: none / mild / significant
-- morning stiffness: duration in minutes or none
+- morning stiffness: duration in minutes or "none"
 - medication adherence: yes / partial / no
-
+${customSection}
 Patient transcript:
 "${transcript}"
 
-Task:
-1. Extract ONLY the metrics the patient explicitly and clearly stated in THIS transcript.
-   For every metric the patient did not clearly address, set value, confidence, and raw to null.
+Tasks:
+1. Extract ONLY what the patient explicitly stated. If they did not mention a metric, set all fields to null.
    It is normal and expected for most metrics to be null in a short message.
 2. A metric is "covered" only when it has an explicit value here. List the rest in missingMetrics.
 3. If anything is missing, generate one natural follow-up question.
@@ -62,6 +78,7 @@ Return JSON only:
     "morning_stiffness": { "value": null, "confidence": null, "raw": null },
     "medication_adherence": { "value": null, "confidence": null, "raw": null }
   },
+${trackedFindingsSchema}
   "coveredMetrics": [],
   "missingMetrics": [],
   "ambiguousMetrics": [],

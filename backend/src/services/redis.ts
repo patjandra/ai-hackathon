@@ -21,6 +21,7 @@ const kPatient = (id: string) => `patient:${id}`;
 const kCheckins = (id: string) => `checkins:${id}`;
 const kCheckin = (id: string) => `checkin:${id}`;
 const kSummary = (id: string) => `summary:${id}`;
+const kParams = (id: string) => `params:${id}`;
 
 const IN_PROGRESS_TTL = 60 * 60; // 1h — covers a check-in + its follow-up turn
 
@@ -43,6 +44,7 @@ export function flattenCheckin(c: CheckIn): Record<string, string> {
     missingMetrics: c.missingMetrics.join(","),
     followUpUsed: String(c.followUpUsed),
     patientQuote: c.patientQuote ?? "",
+    trackedFindings: c.trackedFindings ? JSON.stringify(c.trackedFindings) : "",
   };
 }
 
@@ -66,6 +68,7 @@ export function unflattenCheckin(h: Record<string, string>): CheckIn {
     missingMetrics: (h.missingMetrics ? h.missingMetrics.split(",") : []) as MetricKey[],
     followUpUsed: h.followUpUsed === "true",
     patientQuote: str(h.patientQuote),
+    trackedFindings: h.trackedFindings ? JSON.parse(h.trackedFindings) : undefined,
   };
 }
 
@@ -139,4 +142,39 @@ export async function getCachedSummary(patientId: string): Promise<PhysicianSumm
 
 export async function cacheSummary(patientId: string, summary: PhysicianSummary) {
   await redis.set(kSummary(patientId), JSON.stringify(summary), { EX: 3600 });
+}
+
+export async function clearSummaryCache(patientId: string) {
+  await redis.del(kSummary(patientId));
+}
+
+// ----- Tracked parameters -----
+const DEFAULT_PARAMS = ["Pain", "Fatigue", "Sleep quality", "Mood", "Medication adherence"];
+
+export async function getTrackedParams(patientId: string): Promise<string[]> {
+  const raw = await redis.get(kParams(patientId));
+  if (!raw) return DEFAULT_PARAMS;
+  try {
+    const data = JSON.parse(raw);
+    return data.parameters ?? DEFAULT_PARAMS;
+  } catch {
+    return DEFAULT_PARAMS;
+  }
+}
+
+export async function setTrackedParams(
+  patientId: string,
+  parameters: string[],
+  assignedBy = "doctor",
+): Promise<void> {
+  await redis.set(
+    kParams(patientId),
+    JSON.stringify({ patientId, parameters, assignedBy, assignedAt: new Date().toISOString() }),
+  );
+}
+
+export async function getFullTrackedParams(patientId: string) {
+  const raw = await redis.get(kParams(patientId));
+  if (!raw) return { patientId, parameters: DEFAULT_PARAMS, assignedBy: null, assignedAt: null };
+  return JSON.parse(raw);
 }

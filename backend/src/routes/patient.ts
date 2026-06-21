@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getCheckinsSince, getPatient } from "../services/redis.js";
+import { getCheckinsSince, getFullTrackedParams, getPatient, setTrackedParams } from "../services/redis.js";
 
 const router = Router();
 
@@ -20,6 +20,20 @@ router.get("/:patientId/checkins", async (req, res) => {
   const sinceMs = Date.parse(since ?? patient.lastAppointment);
   const checkins = await getCheckinsSince(patientId, sinceMs);
   res.json(checkins);
+});
+
+// GET /api/patient/:patientId/parameters
+router.get("/:patientId/parameters", async (req, res) => {
+  const data = await getFullTrackedParams(req.params.patientId);
+  res.json(data);
+});
+
+// PUT /api/patient/:patientId/parameters  { parameters: string[] }
+router.put("/:patientId/parameters", async (req, res) => {
+  const { parameters } = req.body as { parameters: string[] };
+  if (!Array.isArray(parameters)) return res.status(400).json({ error: "parameters must be an array" });
+  await setTrackedParams(req.params.patientId, parameters);
+  res.json({ saved: true, parameters });
 });
 
 export default router;

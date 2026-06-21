@@ -3,6 +3,7 @@ import { callText, parseJsonResponse, SUMMARY_MODEL } from "../services/claude.j
 import { formatCheckinHistory, summaryPrompt } from "../prompts/summary.js";
 import {
   cacheSummary,
+  clearSummaryCache,
   getCachedSummary,
   getCheckinsSince,
   getPatient,
@@ -20,11 +21,18 @@ function normalizeTrajectory(t: unknown): Trajectory {
   return "STABLE";
 }
 
-// GET /api/summary/:patientId
+// DELETE /api/summary/:patientId — clear cache so next GET forces regeneration
+router.delete("/:patientId", async (req, res) => {
+  await clearSummaryCache(req.params.patientId).catch(() => {});
+  res.json({ cleared: true });
+});
+
+// GET /api/summary/:patientId  (?force=1 bypasses cache)
 router.get("/:patientId", async (req, res) => {
   const { patientId } = req.params;
+  const force = req.query.force === "1";
   try {
-    const cached = await getCachedSummary(patientId);
+    const cached = !force ? await getCachedSummary(patientId) : null;
     if (cached) return res.json(cached);
 
     const patient = await getPatient(patientId);

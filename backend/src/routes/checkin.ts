@@ -5,21 +5,21 @@ import { combinedPrompt, type CombinedResult } from "../prompts/combined.js";
 import {
   completeCheckin,
   getCheckin,
+  getTrackedParams,
   saveInProgress,
 } from "../services/redis.js";
 import type { CheckIn, CheckInMetrics, MetricKey } from "../../../shared/types.js";
 
 const router = Router();
 
-// Map the prompt's snake_case keys to our camelCase metric keys.
 function toMetrics(r: CombinedResult): CheckInMetrics {
   const c = (x: any) => (x?.confidence ?? null) as any;
   return {
-    pain: { value: r.metrics.pain.value, confidence: c(r.metrics.pain), raw: r.metrics.pain.raw },
-    fatigue: { value: r.metrics.fatigue.value, confidence: c(r.metrics.fatigue), raw: r.metrics.fatigue.raw },
-    swelling: { value: r.metrics.swelling.value, confidence: c(r.metrics.swelling), raw: r.metrics.swelling.raw },
-    morningStiffness: { value: r.metrics.morning_stiffness.value, confidence: c(r.metrics.morning_stiffness), raw: r.metrics.morning_stiffness.raw },
-    medicationAdherence: { value: r.metrics.medication_adherence.value, confidence: c(r.metrics.medication_adherence), raw: r.metrics.medication_adherence.raw },
+    pain:                 { value: r.metrics.pain.value,                 confidence: c(r.metrics.pain),                 raw: r.metrics.pain.raw                 },
+    fatigue:              { value: r.metrics.fatigue.value,              confidence: c(r.metrics.fatigue),              raw: r.metrics.fatigue.raw              },
+    swelling:             { value: r.metrics.swelling.value,             confidence: c(r.metrics.swelling),             raw: r.metrics.swelling.raw             },
+    morningStiffness:     { value: r.metrics.morning_stiffness.value,    confidence: c(r.metrics.morning_stiffness),    raw: r.metrics.morning_stiffness.raw    },
+    medicationAdherence:  { value: r.metrics.medication_adherence.value, confidence: c(r.metrics.medication_adherence), raw: r.metrics.medication_adherence.raw },
   };
 }
 
@@ -27,12 +27,11 @@ const ALL: MetricKey[] = ["pain", "fatigue", "swelling", "morningStiffness", "me
 const coveredOf = (m: CheckInMetrics) => ALL.filter((k) => m[k].value !== null && m[k].value !== "");
 const missingOf = (m: CheckInMetrics) => ALL.filter((k) => m[k].value === null || m[k].value === "");
 
-async function extract(transcript: string): Promise<CombinedResult> {
-  const text = await callText(EXTRACTION_MODEL, combinedPrompt(transcript), 1000);
+async function extract(transcript: string, trackedParams: string[]): Promise<CombinedResult> {
+  const text = await callText(EXTRACTION_MODEL, combinedPrompt(transcript, trackedParams), 1000);
   return parseJsonResponse<CombinedResult>(text);
 }
 
-// Backend owns the merge: never overwrite a confirmed value with null (issue #3).
 function mergeMetrics(prev: CheckInMetrics, next: CheckInMetrics): CheckInMetrics {
   const out = { ...prev };
   for (const k of ALL) {
@@ -42,11 +41,24 @@ function mergeMetrics(prev: CheckInMetrics, next: CheckInMetrics): CheckInMetric
   return out;
 }
 
+function mergeTrackedFindings(
+  prev: Record<string, string | null> | undefined,
+  next: Record<string, string | null>,
+): Record<string, string | null> {
+  const merged = { ...(prev ?? {}), ...next };
+  // Don't overwrite an already-confirmed value with null
+  for (const [k, v] of Object.entries(prev ?? {})) {
+    if (v !== null && next[k] === null) merged[k] = v;
+  }
+  return merged;
+}
+
 // POST /api/checkin  { patientId, transcript }
 router.post("/", async (req, res) => {
   try {
     const { patientId, transcript } = req.body as { patientId: string; transcript: string };
-    const result = await extract(transcript);
+    const trackedParams = await getTrackedParams(patientId);
+    const result = await extract(transcript, trackedParams);
     const metrics = toMetrics(result);
     const checkin: CheckIn = {
       id: randomUUID(),
@@ -58,6 +70,7 @@ router.post("/", async (req, res) => {
       missingMetrics: missingOf(metrics),
       followUpUsed: false,
       patientQuote: result.patientQuote,
+      trackedFindings: result.trackedFindings ?? {},
     };
     await saveInProgress(checkin);
     res.json({
@@ -79,13 +92,15 @@ router.post("/:id/followup", async (req, res) => {
     const existing = await getCheckin(req.params.id);
     if (!existing) return res.status(404).json({ error: "checkin_not_found" });
     const { transcript } = req.body as { transcript: string };
-    const result = await extract(transcript);
+    const trackedParams = await getTrackedParams(existing.patientId);
+    const result = await extract(transcript, trackedParams);
     const merged = mergeMetrics(existing.metrics, toMetrics(result));
     existing.metrics = merged;
     existing.coveredMetrics = coveredOf(merged);
     existing.missingMetrics = missingOf(merged);
     existing.followUpUsed = true;
     existing.rawTranscript += `\n${transcript}`;
+    existing.trackedFindings = mergeTrackedFindings(existing.trackedFindings, result.trackedFindings ?? {});
     if (result.patientQuote && !existing.patientQuote) existing.patientQuote = result.patientQuote;
     await saveInProgress(existing);
     res.json({

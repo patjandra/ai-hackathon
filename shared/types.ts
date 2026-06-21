@@ -48,6 +48,14 @@ export interface CheckIn {
   missingMetrics: MetricKey[];
   followUpUsed: boolean;
   patientQuote: string | null;
+  trackedFindings?: Record<string, string | null>; // doctor-assigned custom params
+}
+
+export interface TrackedParameters {
+  patientId: string;
+  parameters: string[];
+  assignedBy: string | null;
+  assignedAt: string | null;
 }
 
 export interface KeyEvent {

@@ -10,39 +10,51 @@ export interface CombinedResult {
     morning_stiffness: { value: number | null; confidence: string | null; raw: string | null };
     medication_adherence: { value: string | null; confidence: string | null; raw: string | null };
   };
+  trackedFindings: Record<string, string | null>;
   coveredMetrics: string[];
   missingMetrics: string[];
   followUpQuestion: string | null;
   patientQuote: string | null;
 }
 
-export function combinedPrompt(transcript: string): string {
-  return `You are a clinical check-in assistant for a rheumatology practice.
+// Standard 5 RA metrics always extracted regardless of patient settings.
+const STANDARD_KEYS = ["pain", "fatigue", "swelling", "morning_stiffness", "medication_adherence"];
 
-The doctor requires these metrics:
+export function combinedPrompt(transcript: string, trackedParams: string[] = []): string {
+  // Custom params = anything the doctor assigned beyond the standard 5.
+  const standard = new Set(["Pain", "Fatigue", "Swelling", "Morning stiffness", "Medication adherence"]);
+  const custom = trackedParams.filter((p) => !standard.has(p));
+
+  const customSection = custom.length > 0
+    ? `\nAdditional tracked parameters assigned by this patient's doctor — listen for these too:\n${custom.map((p) => `- ${p}`).join("\n")}\n`
+    : "";
+
+  // Build the tracked_findings schema for the JSON output.
+  const trackedFindingsSchema = custom.length > 0
+    ? `  "trackedFindings": {\n${custom.map((p) => `    "${p}": null`).join(",\n")}\n  },`
+    : `  "trackedFindings": {},`;
+
+  return `You are a clinical check-in assistant.
+
+Standard metrics to always extract:
 - pain level: 0-10
 - fatigue: low / moderate / high
 - swelling: none / mild / significant
-- morning stiffness: duration in minutes or none
+- morning stiffness: duration in minutes or "none"
 - medication adherence: yes / partial / no
-
+${customSection}
 Patient transcript:
 "${transcript}"
 
-Task:
-1. Extract ONLY the metrics the patient explicitly and clearly stated in THIS transcript.
-   For every metric the patient did not clearly address, set value, confidence, and raw to null.
+Tasks:
+1. Extract ONLY what the patient explicitly stated. If they did not mention a metric, set all fields to null.
    It is normal and expected for most metrics to be null in a short message.
-2. A metric is "covered" only when it has an explicit value here. List the rest in missingMetrics.
-3. If anything is missing, generate one natural follow-up question.
-   Keep it short, warm, and easy to answer out loud (one sentence).
-   Do NOT use em dashes or en dashes ("—" / "–"); use a comma or period.
-4. NEVER infer, assume, or guess. Do not fill in a metric just because it is on the list.
-   If the patient said nothing about a metric, its value MUST be null.
-   Example: if the patient only mentions pain, then fatigue, swelling, morning_stiffness,
-   and medication_adherence all stay null.
-5. Select the single most clinically significant quote from the transcript
-   (something that captures meaning beyond the structured metrics), or null if none.
+2. For each additional tracked parameter, write a brief phrase describing what the patient said,
+   or null if they did not mention it. NEVER fabricate or infer.
+3. A metric is "covered" only if it has an explicit value. List uncovered ones in missingMetrics.
+4. Write ONE warm, natural follow-up question covering the most important uncovered items
+   (standard metrics AND any uncovered tracked parameters). One sentence, no em dashes.
+5. Pick the most clinically significant quote from the transcript, or null if none.
 
 Return JSON only:
 
@@ -54,6 +66,7 @@ Return JSON only:
     "morning_stiffness": { "value": null, "confidence": null, "raw": null },
     "medication_adherence": { "value": null, "confidence": null, "raw": null }
   },
+${trackedFindingsSchema}
   "coveredMetrics": [],
   "missingMetrics": [],
   "followUpQuestion": null,

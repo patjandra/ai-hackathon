@@ -41,4 +41,16 @@ export const api = {
   summary: (patientId: string) => fetch(`${API}/api/summary/${patientId}`).then((r) => j<PhysicianSummary>(r)),
 
   seed: () => fetch(`${API}/api/demo/seed`, { method: "POST" }).then((r) => j<{ patientId: string; dashboardUrl: string }>(r)),
+
+  getTrackedParams: (patientId: string) =>
+    fetch(`${API}/api/patient/${patientId}/parameters`).then((r) =>
+      j<{ patientId: string; parameters: string[]; assignedBy: string | null; assignedAt: string | null }>(r),
+    ),
+
+  setTrackedParams: (patientId: string, parameters: string[]) =>
+    fetch(`${API}/api/patient/${patientId}/parameters`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parameters }),
+    }).then((r) => j<{ saved: boolean; parameters: string[] }>(r)),
 };

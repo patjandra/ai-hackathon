@@ -262,7 +262,7 @@ export default function PatientCheckin({ loginOnly = false }: { loginOnly?: bool
   };
 
   if (loginOnly) return <PatientLogin onLogin={handleLogin} />;
-  if (!patient) return <Navigate to="/" replace />;
+  if (!patient) return <Navigate to="/login" replace />;
 
   return (
     <div className="min-h-[100dvh] flex justify-center px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">

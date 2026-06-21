@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { callText, parseJsonResponse, SUMMARY_MODEL } from "../services/claude.js";
+import { callText, compressPromptData, parseJsonResponse, SUMMARY_MODEL } from "../services/claude.js";
 import { formatCheckinHistory, summaryPrompt } from "../prompts/summary.js";
 import {
   cacheSummary,
@@ -42,7 +42,7 @@ router.get("/:patientId", async (req, res) => {
     const checkins = await getCheckinsSince(patientId, sinceMs);
     if (checkins.length === 0) return res.status(404).json({ error: "no_checkins" });
 
-    const history = formatCheckinHistory(checkins);
+    const history = await compressPromptData(formatCheckinHistory(checkins));
     const text = await callText(
       SUMMARY_MODEL,
       summaryPrompt(history, checkins.length, patient.lastAppointment),

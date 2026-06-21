@@ -39,10 +39,9 @@ demo-data/     rheumatology-patient.json
   `LiveTranscriptionEvents` (Transcript = `"Results"`) + `connection.send()/finish()`. (The
   `new DeepgramClient` / `listen.v1.connect` style in some docs is a different SDK version.)
 
-## Outstanding wiring (see plan)
+## Observability and compression
 
 - Arize: run the `arize-instrumentation` skill; emit token-before/after as custom span attributes.
-- Token Company: not yet a dependency. `claude.ts` lazy-requires it with a passthrough fallback,
-  so Claude works without it. To enable: add the package, verify the export name
-  (`with_compression` vs `withCompression`), and switch the lazy `require` to a dynamic import
-  (backend is ESM).
+- Token Company: the official Node SDK compresses check-in history before summary generation,
+  while schemas and clinical output instructions remain untouched. If compression is unavailable,
+  the backend safely falls back to the original history.

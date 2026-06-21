@@ -416,6 +416,9 @@ function PatientLogin({ onLogin }: { onLogin: (patient: Patient) => void }) {
             {loading ? "Finding your account…" : "Continue"}
           </button>
         </form>
+        <p className="mt-4 text-center text-[12px] text-ink-400">
+          Sample patient: Kelley Liang · DOB 01/14/1987
+        </p>
       </div>
     </div>
   );

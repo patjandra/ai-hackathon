@@ -1,41 +1,45 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { createRequire } from "module";
+import { TheTokenCompany } from "the-token-company";
 
-// ESM has no `require`; create one so an optional CJS dependency can be loaded
-// lazily without making this whole module async.
-const require = createRequire(import.meta.url);
+export const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
-// The Token Company wrapper (plan issue B + LOW note).
-// The JS export name may differ from the docs' snake_case `with_compression`
-// (could be `withCompression`). Verify against the installed package, and keep
-// a no-op passthrough fallback so a wrapper hiccup never blocks the demo.
-//
-// IMPORTANT (plan issue B): compression deletes "low-signal" input tokens. Only
-// the natural-language transcript/history should be compressed — never the JSON
-// schema / format instructions. Keep format instructions outside any compressed
-// span, or confirm empirically that structured output survives.
-function buildClient(): Anthropic {
-  const base = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
-  const key = process.env.TOKEN_COMPANY_API_KEY;
-  if (!key) return base;
-  try {
-    const tc = require("the-token-company");
-    const wrap = tc.with_compression ?? tc.withCompression ?? tc.default;
-    if (typeof wrap === "function") {
-      console.log("[token-company] compression wrapper active");
-      return wrap(base, { compression_api_key: key });
-    }
-    console.warn("[token-company] wrapper export not found; using passthrough");
-  } catch {
-    console.warn("[token-company] package not installed; using passthrough");
-  }
-  return base;
+const tokenCompany = process.env.TOKEN_COMPANY_API_KEY
+  ? new TheTokenCompany({
+      apiKey: process.env.TOKEN_COMPANY_API_KEY,
+      appId: "interim-previsit",
+    })
+  : null;
+
+if (tokenCompany) {
+  console.log("[token-company] compression active for summary histories");
+} else {
+  console.warn("[token-company] API key missing; using uncompressed summary histories");
 }
-
-export const anthropic = buildClient();
 
 export const EXTRACTION_MODEL = process.env.EXTRACTION_MODEL ?? "claude-haiku-4-5";
 export const SUMMARY_MODEL = process.env.SUMMARY_MODEL ?? "claude-sonnet-4-6";
+
+/**
+ * Compress only natural-language/data spans before they are inserted into a
+ * larger prompt. Never send JSON schemas or output-format instructions through
+ * compression. Failure falls back to the original text so check-ins keep working.
+ */
+export async function compressPromptData(text: string): Promise<string> {
+  if (!tokenCompany || text.length < 500) return text;
+  try {
+    const result = await tokenCompany.compress(text, {
+      model: "bear-2",
+      aggressiveness: 0.2,
+    });
+    console.log(
+      `[token-company] ${result.inputTokens} → ${result.outputTokens} tokens (${result.tokensSaved} saved)`,
+    );
+    return result.output;
+  } catch (error) {
+    console.warn("[token-company] compression failed; using original text", error);
+    return text;
+  }
+}
 
 /**
  * Robust JSON extraction from a Claude text response (plan issue G).

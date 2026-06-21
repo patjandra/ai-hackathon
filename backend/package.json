@@ -7,7 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/backend/src/index.js",
-    "seed": "tsx ../scripts/seed.ts"
+    "seed": "tsx ../scripts/seed.ts",
+    "seed:directory": "tsx scripts/seed-directory-patients.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",
@@ -23,6 +24,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "redis": "^4.7.0",
+    "the-token-company": "^0.3.2",
     "ws": "^8.18.0"
   },
   "devDependencies": {

@@ -44,8 +44,8 @@ function ambiguousOf(result: CombinedResult, missing: MetricKey[]): MetricKey[] 
   return missing.filter((k) => flagged.has(k));
 }
 
-async function extract(transcript: string, trackedParams: string[]): Promise<CombinedResult> {
-  const text = await callText(EXTRACTION_MODEL, combinedPrompt(transcript, trackedParams), 1000);
+async function extract(transcript: string, trackedParams: string[], context = ""): Promise<CombinedResult> {
+  const text = await callText(EXTRACTION_MODEL, combinedPrompt(transcript, trackedParams, context), 1000);
   return parseJsonResponse<CombinedResult>(text);
 }
 
@@ -109,9 +109,9 @@ router.post("/:id/followup", async (req, res) => {
   try {
     const existing = await getCheckin(req.params.id);
     if (!existing) return res.status(404).json({ error: "checkin_not_found" });
-    const { transcript } = req.body as { transcript: string };
+    const { transcript, context } = req.body as { transcript: string; context?: string };
     const trackedParams = await getTrackedParams(existing.patientId);
-    const result = await extract(transcript, trackedParams);
+    const result = await extract(transcript, trackedParams, context ?? "");
     const merged = mergeMetrics(existing.metrics, toMetrics(result));
     existing.metrics = merged;
     existing.coveredMetrics = coveredOf(merged);

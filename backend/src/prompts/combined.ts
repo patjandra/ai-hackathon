@@ -21,7 +21,7 @@ export interface CombinedResult {
 // Standard 5 RA metrics always extracted regardless of patient settings.
 const STANDARD_KEYS = ["pain", "fatigue", "swelling", "morning_stiffness", "medication_adherence"];
 
-export function combinedPrompt(transcript: string, trackedParams: string[] = []): string {
+export function combinedPrompt(transcript: string, trackedParams: string[] = [], context = ""): string {
   // Custom params = anything the doctor assigned beyond the standard 5.
   const standard = new Set(["Pain", "Fatigue", "Swelling", "Morning stiffness", "Medication adherence"]);
   const custom = trackedParams.filter((p) => !standard.has(p));
@@ -44,9 +44,19 @@ Standard metrics to always extract:
   fatigue, moderate energy = "moderate" fatigue.
 - swelling: none / mild / significant
 - morning stiffness: duration in minutes or "none"
-- medication adherence: yes / partial / no
+- medication adherence: yes / partial / no. Use "yes" ONLY when the patient clearly
+  indicates they took their full prescribed medication (e.g. "took all my meds",
+  "took it as prescribed"). Use "partial" / "no" for clearly missed or skipped doses.
+  Vague statements like "took some meds", "took some medication", or "had my meds"
+  are NOT clear adherence — leave the value null and mark medication_adherence as
+  ambiguous so we can confirm whether they took it as prescribed.
 ${customSection}
-Patient transcript:
+${context ? `The patient was just asked this question: "${context}"
+Their message below is a direct reply to it. Interpret short answers (e.g. "yes",
+"no", a number, or "low/moderate/high") as the answer to THAT question and set the
+matching metric accordingly. Still extract any other metrics they happen to mention.
+
+` : ""}Patient transcript:
 "${transcript}"
 
 Tasks:
@@ -65,8 +75,10 @@ Tasks:
 6. In ambiguousMetrics, list any metric the patient TOUCHED ON or alluded to but
    did NOT clearly specify (so its value stayed null). Use these exact keys:
    pain, fatigue, swelling, morning_stiffness, medication_adherence.
-   Example: "my joints felt a little off" → swelling is ambiguous (mentioned, not
-   clearly given). Do not list metrics the patient never referenced at all.
+   Examples: "my joints felt a little off" → swelling is ambiguous (mentioned, not
+   clearly given). "I took some meds" → medication_adherence is ambiguous (took
+   medication, but unclear if it was the full prescribed dose).
+   Do not list metrics the patient never referenced at all.
 
 Return JSON only:
 

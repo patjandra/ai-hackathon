@@ -23,11 +23,11 @@ export const api = {
       body: JSON.stringify({ patientId, transcript }),
     }).then((r) => j<CheckInResponse>(r)),
 
-  followup: (checkinId: string, transcript: string) =>
+  followup: (checkinId: string, transcript: string, context?: string) =>
     fetch(`${API}/api/checkin/${checkinId}/followup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript }),
+      body: JSON.stringify({ transcript, context }),
     }).then((r) => j<Omit<CheckInResponse, "checkinId" | "metrics"> & { updatedMetrics: CheckInResponse["metrics"] }>(r)),
 
   complete: (checkinId: string) =>

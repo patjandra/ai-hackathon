@@ -1,4 +1,4 @@
-// Interim wordmark + bullseye logo. The mark is three concentric rings; colored
+// Interim wordmark + bullseye logo. The mark is three concentric rings, colored
 // via currentColor so it inherits whatever text color it's placed in.
 export function InterimMark({ className = "" }: { className?: string }) {
   return (
@@ -10,11 +10,23 @@ export function InterimMark({ className = "" }: { className?: string }) {
   );
 }
 
-export default function InterimLogo({ className = "" }: { className?: string }) {
+const SIZES = {
+  md: { mark: "w-7 h-7", text: "text-lg", gap: "gap-2" },
+  lg: { mark: "w-11 h-11", text: "text-3xl", gap: "gap-3" },
+} as const;
+
+export default function InterimLogo({
+  className = "",
+  size = "md",
+}: {
+  className?: string;
+  size?: keyof typeof SIZES;
+}) {
+  const s = SIZES[size];
   return (
-    <div className={`inline-flex items-center gap-2 ${className}`}>
-      <InterimMark className="w-7 h-7 text-indigo-600" />
-      <span className="text-lg font-semibold tracking-tight text-ink-900">Interim</span>
+    <div className={`inline-flex items-center ${s.gap} ${className}`}>
+      <InterimMark className={`${s.mark} text-indigo-600`} />
+      <span className={`${s.text} font-semibold tracking-tight text-indigo-600`}>Interim</span>
     </div>
   );
 }

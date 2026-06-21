@@ -352,10 +352,15 @@ function PatientLogin({ onLogin }: { onLogin: (patient: Patient) => void }) {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const isoDob = parseDisplayDate(dob);
+    if (!isoDob) {
+      setError("Enter a valid date of birth using MM/DD/YYYY.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      onLogin(await api.loginPatient(name, dob));
+      onLogin(await api.loginPatient(name, isoDob));
     } catch {
       setError("We couldn't find a patient with that name and date of birth.");
     } finally {
@@ -386,10 +391,13 @@ function PatientLogin({ onLogin }: { onLogin: (patient: Patient) => void }) {
           <label className="block min-w-0">
             <span className="text-[13px] font-medium text-ink-700">Date of birth</span>
             <input
-              type="date"
+              type="text"
+              inputMode="numeric"
               value={dob}
-              onChange={(e) => setDob(e.target.value)}
+              onChange={(e) => setDob(formatDisplayDate(e.target.value))}
               autoComplete="bday"
+              placeholder="MM/DD/YYYY"
+              maxLength={10}
               className="mt-1.5 block w-full min-w-0 max-w-full box-border px-4 py-3 border border-clay rounded-2xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
             />
           </label>
@@ -411,6 +419,27 @@ function PatientLogin({ onLogin }: { onLogin: (patient: Patient) => void }) {
       </div>
     </div>
   );
+}
+
+function formatDisplayDate(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function parseDisplayDate(value: string): string | null {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  if (!match) return null;
+  const [, month, day, year] = match;
+  const iso = `${year}-${month}-${day}`;
+  const date = new Date(`${iso}T12:00:00`);
+  if (
+    date.getFullYear() !== Number(year) ||
+    date.getMonth() + 1 !== Number(month) ||
+    date.getDate() !== Number(day)
+  ) return null;
+  return iso;
 }
 
 function TextComposer({

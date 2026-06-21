@@ -24,4 +24,16 @@
   .eyebrow {
     @apply text-[11px] font-semibold tracking-[0.18em] uppercase text-ink-400;
   }
+  .patient-auth-input {
+    @apply mt-1.5 block w-full border border-clay rounded-2xl bg-white px-4 py-3 text-sm;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    appearance: none;
+    -webkit-appearance: none;
+    border-radius: 1rem;
+  }
+  .patient-auth-input:focus {
+    @apply outline-none ring-2 ring-indigo-500/30 border-indigo-400;
+  }
 }

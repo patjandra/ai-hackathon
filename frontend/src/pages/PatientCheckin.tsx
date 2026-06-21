@@ -385,7 +385,7 @@ function PatientLogin({ onLogin }: { onLogin: (patient: Patient) => void }) {
               onChange={(e) => setName(e.target.value)}
               autoComplete="name"
               placeholder="e.g. Kelley Liang"
-              className="mt-1.5 block w-full min-w-0 max-w-full box-border px-4 py-3 border border-clay rounded-2xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+              className="patient-auth-input"
             />
           </label>
           <label className="block min-w-0">
@@ -398,7 +398,7 @@ function PatientLogin({ onLogin }: { onLogin: (patient: Patient) => void }) {
               autoComplete="bday"
               placeholder="MM/DD/YYYY"
               maxLength={10}
-              className="mt-1.5 block w-full min-w-0 max-w-full box-border px-4 py-3 border border-clay rounded-2xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+              className="patient-auth-input"
             />
           </label>
 

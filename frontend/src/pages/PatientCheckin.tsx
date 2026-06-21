@@ -372,25 +372,25 @@ function PatientLogin({ onLogin }: { onLogin: (patient: Patient) => void }) {
           <p className="text-sm text-ink-500 mt-1">Enter your information to continue.</p>
         </header>
 
-        <form onSubmit={submit} className="card p-5 space-y-4">
-          <label className="block">
+        <form onSubmit={submit} className="card w-full min-w-0 overflow-hidden p-5 space-y-4">
+          <label className="block min-w-0">
             <span className="text-[13px] font-medium text-ink-700">Full name</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="name"
               placeholder="e.g. Kelley Liang"
-              className="mt-1.5 w-full px-4 py-3 border border-clay rounded-2xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+              className="mt-1.5 block w-full min-w-0 max-w-full box-border px-4 py-3 border border-clay rounded-2xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
             />
           </label>
-          <label className="block">
+          <label className="block min-w-0">
             <span className="text-[13px] font-medium text-ink-700">Date of birth</span>
             <input
               type="date"
               value={dob}
               onChange={(e) => setDob(e.target.value)}
               autoComplete="bday"
-              className="mt-1.5 w-full px-4 py-3 border border-clay rounded-2xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+              className="mt-1.5 block w-full min-w-0 max-w-full box-border px-4 py-3 border border-clay rounded-2xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
             />
           </label>
 

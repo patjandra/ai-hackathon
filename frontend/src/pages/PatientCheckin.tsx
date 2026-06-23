@@ -6,6 +6,7 @@ import { useDeepgram } from "../hooks/useDeepgram";
 import LiveChecklist from "../components/LiveChecklist";
 import AIConversation from "../components/AIConversation";
 import VoiceRecorder from "../components/VoiceRecorder";
+import PatientTopBar from "../components/PatientTopBar";
 import type { ChatMessage } from "../components/AIConversation";
 import type { Patient } from "../../../shared/types";
 
@@ -265,80 +266,69 @@ export default function PatientCheckin({ loginOnly = false }: { loginOnly?: bool
   if (!patient) return <Navigate to="/login" replace />;
 
   return (
-    <div className="min-h-[100dvh] flex justify-center px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <div className="w-full max-w-md">
-        <header className="flex flex-col items-center text-center mb-3">
-          <img
-            src="/interim-wordmark.png"
-            alt="Interim"
-            className="h-14 w-auto mb-2"
-          />
-          <p className="text-sm text-ink-600 font-medium">Welcome, {patient.name}</p>
-          <p className="text-sm text-ink-400">
-            Condition: {patient.diagnosis} | Check-in for {DOCTOR}
+    <div className="min-h-[100dvh] flex flex-col">
+      <PatientTopBar patient={patient} doctor={DOCTOR} onLogout={logout} />
+
+      <div className="flex-1 flex justify-center px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <div className="w-full max-w-md">
+          <p className="text-center text-sm text-ink-600 font-medium mb-3">
+            Welcome, {patient.name}
           </p>
-          <button
-            type="button"
-            onClick={logout}
-            className="mt-1.5 text-[12px] font-medium text-ink-400 hover:text-indigo-600 transition-colors"
-          >
-            Log out
-          </button>
-        </header>
 
-        {/* Input area: mic (voice) or composer (text); shared processing/done */}
-        {topicsLoading ? (
-          <div className="flex justify-center py-10 text-sm text-ink-400">
-            Loading today&rsquo;s topics…
-          </div>
-        ) : mode === "text" && isInputPhase ? (
-          <TextComposer
-            value={draftText}
-            onChange={setDraftText}
-            onSend={sendText}
-            onUseVoice={() => setMode("voice")}
-            followup={phase === "followup"}
-          />
-        ) : (
-          <div className="flex flex-col items-center">
-            <VoiceRecorder
-              phase={phase}
-              recording={recording}
-              onStart={beginFresh}
-              onDone={done}
-              onFollowupSpeak={beginFollowup}
-              onAddMore={addUpdate}
-            />
-            {mode === "voice" && isInputPhase && (
-              <button
-                onClick={() => setMode("text")}
-                className="-mt-2 mb-8 px-6 py-2.5 rounded-full border border-clay text-ink-600 text-sm font-medium hover:bg-sand/60 transition-colors"
-              >
-                Type Instead
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Always-visible topic rail: pins to the top of the viewport so patients
-            watch items check off live. The conversation below is the focal point. */}
-        <div className="sticky top-0 z-20 -mx-4 px-4 pt-1 pb-2 bg-cream/85 backdrop-blur-sm">
-          <div className="card px-3 py-2.5">
-            <div className="flex items-center justify-between mb-2">
-              <span className="eyebrow">Today&rsquo;s topics</span>
-              <span className="text-[11px] font-medium text-ink-400">
-                {state.confirmed.length}/{topics.length} covered
-              </span>
+          {/* Input area: mic (voice) or composer (text); shared processing/done */}
+          {topicsLoading ? (
+            <div className="flex justify-center py-10 text-sm text-ink-400">
+              Loading today&rsquo;s topics…
             </div>
-            <LiveChecklist state={state} topics={topics} layout="rail" />
-          </div>
-        </div>
+          ) : mode === "text" && isInputPhase ? (
+            <TextComposer
+              value={draftText}
+              onChange={setDraftText}
+              onSend={sendText}
+              onUseVoice={() => setMode("voice")}
+              followup={phase === "followup"}
+            />
+          ) : (
+            <div className="flex flex-col items-center">
+              <VoiceRecorder
+                phase={phase}
+                recording={recording}
+                onStart={beginFresh}
+                onDone={done}
+                onFollowupSpeak={beginFollowup}
+                onAddMore={addUpdate}
+              />
+              {mode === "voice" && isInputPhase && (
+                <button
+                  onClick={() => setMode("text")}
+                  className="-mt-2 mb-8 px-6 py-2.5 rounded-full border border-clay text-ink-600 text-sm font-medium hover:bg-sand/60 transition-colors"
+                >
+                  Type Instead
+                </button>
+              )}
+            </div>
+          )}
 
-        <AIConversation
-          messages={messages}
-          typing={phase === "processing"}
-          draft={phase === "recording" ? liveTranscript : ""}
-        />
+          {/* Always-visible topic rail: pins just below the nav bar so patients
+              watch items check off live. The conversation below is the focal point. */}
+          <div className="sticky top-[calc(env(safe-area-inset-top)+3.5rem)] z-20 -mx-4 px-4 pt-1 pb-2 bg-cream/85 backdrop-blur-sm">
+            <div className="card px-3 py-2.5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="eyebrow">Today&rsquo;s topics</span>
+                <span className="text-[11px] font-medium text-ink-400">
+                  {state.confirmed.length}/{topics.length} covered
+                </span>
+              </div>
+              <LiveChecklist state={state} topics={topics} layout="rail" />
+            </div>
+          </div>
+
+          <AIConversation
+            messages={messages}
+            typing={phase === "processing"}
+            draft={phase === "recording" ? liveTranscript : ""}
+          />
+        </div>
       </div>
     </div>
   );

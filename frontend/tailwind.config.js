@@ -42,11 +42,17 @@ export default {
           '70%': { boxShadow: '0 0 0 22px rgba(99,102,241,0)' },
           '100%': { boxShadow: '0 0 0 0 rgba(99,102,241,0)' },
         },
+        // Typing-indicator dot bounce — small vertical hop with a settle pause.
+        'typing-bounce': {
+          '0%, 80%, 100%': { transform: 'translateY(0)' },
+          '40%': { transform: 'translateY(-5px)' },
+        },
       },
       animation: {
         'fade-up': 'fade-up 0.5s cubic-bezier(0.16,1,0.3,1) both',
         'soft-pulse': 'soft-pulse 2s ease-in-out infinite',
         'ring-pulse': 'ring-pulse 1.8s ease-out infinite',
+        'typing-bounce': 'typing-bounce 1.2s ease-in-out infinite',
       },
     },
   },

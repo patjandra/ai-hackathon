@@ -266,68 +266,69 @@ export default function PatientCheckin({ loginOnly = false }: { loginOnly?: bool
   if (!patient) return <Navigate to="/login" replace />;
 
   return (
-    <div className="min-h-[100dvh] flex flex-col">
+    <div className="h-[100dvh] overflow-hidden flex flex-col">
       <PatientTopBar patient={patient} doctor={DOCTOR} onLogout={logout} />
 
-      <div className="flex-1 flex justify-center px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-        <div className="w-full max-w-md">
+      <div className="flex-1 min-h-0 flex justify-center px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <div className="w-full max-w-md flex flex-col min-h-0">
           <p className="text-center text-sm text-ink-600 font-medium mb-3">
             Welcome, {patient.name}
           </p>
 
-          {/* Input area: mic (voice) or composer (text); shared processing/done */}
-          {topicsLoading ? (
-            <div className="flex justify-center py-10 text-sm text-ink-400">
-              Loading today&rsquo;s topics…
+          {/* Today's topics: patients watch items check off as they speak. */}
+          <div className="card px-4 py-3.5 mb-3">
+            <div className="flex items-center justify-between mb-3">
+              <span className="eyebrow">Today&rsquo;s topics</span>
+              <span className="text-[12px] font-medium text-ink-500">
+                {state.confirmed.length}/{topics.length} covered
+              </span>
             </div>
-          ) : mode === "text" && isInputPhase ? (
-            <TextComposer
-              value={draftText}
-              onChange={setDraftText}
-              onSend={sendText}
-              onUseVoice={() => setMode("voice")}
-              followup={phase === "followup"}
-            />
-          ) : (
-            <div className="flex flex-col items-center">
-              <VoiceRecorder
-                phase={phase}
-                recording={recording}
-                onStart={beginFresh}
-                onDone={done}
-                onFollowupSpeak={beginFollowup}
-                onAddMore={addUpdate}
-              />
-              {mode === "voice" && isInputPhase && (
-                <button
-                  onClick={() => setMode("text")}
-                  className="-mt-2 mb-8 px-6 py-2.5 rounded-full border border-clay text-ink-600 text-sm font-medium hover:bg-sand/60 transition-colors"
-                >
-                  Type Instead
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Always-visible topic rail: pins just below the nav bar so patients
-              watch items check off live. The conversation below is the focal point. */}
-          <div className="sticky top-[calc(env(safe-area-inset-top)+3.5rem)] z-20 -mx-4 px-4 pt-1 pb-2 bg-cream/85 backdrop-blur-sm">
-            <div className="card px-3 py-2.5">
-              <div className="flex items-center justify-between mb-2">
-                <span className="eyebrow">Today&rsquo;s topics</span>
-                <span className="text-[11px] font-medium text-ink-400">
-                  {state.confirmed.length}/{topics.length} covered
-                </span>
-              </div>
-              <LiveChecklist state={state} topics={topics} layout="rail" />
-            </div>
+            <LiveChecklist state={state} topics={topics} layout="rail" />
           </div>
 
+          {/* Conversation is the focal point and the only scroll region. */}
           <AIConversation
             messages={messages}
             typing={phase === "processing"}
             draft={phase === "recording" ? liveTranscript : ""}
           />
+
+          {/* Input area below the conversation: mic (voice) or composer (text). */}
+          <div className="shrink-0 mt-4">
+            {topicsLoading ? (
+              <div className="flex justify-center py-6 text-sm text-ink-400">
+                Loading today&rsquo;s topics…
+              </div>
+            ) : mode === "text" && isInputPhase ? (
+              <TextComposer
+                value={draftText}
+                onChange={setDraftText}
+                onSend={sendText}
+                onUseVoice={() => setMode("voice")}
+                followup={phase === "followup"}
+              />
+            ) : (
+              <div className="flex flex-col items-center">
+                <VoiceRecorder
+                  phase={phase}
+                  recording={recording}
+                  onStart={beginFresh}
+                  onDone={done}
+                  onFollowupSpeak={beginFollowup}
+                  onAddMore={addUpdate}
+                />
+                {mode === "voice" && isInputPhase && (
+                  <button
+                    onClick={() => setMode("text")}
+                    className="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-clay bg-white text-ink-900 text-sm font-medium shadow-soft hover:bg-sand/60 transition-colors"
+                  >
+                    <KeyboardIcon />
+                    Type instead
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -435,6 +436,35 @@ function parseDisplayDate(value: string): string | null {
   return iso;
 }
 
+function MicIcon() {
+  return (
+    <svg
+      width="18" height="18" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+    >
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M5 10a7 7 0 0 0 14 0" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+    </svg>
+  );
+}
+
+function KeyboardIcon() {
+  return (
+    <svg
+      width="18" height="18" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+    >
+      <rect x="2" y="6" width="20" height="12" rx="2" />
+      <line x1="6" y1="10" x2="6" y2="10" />
+      <line x1="10" y1="10" x2="10" y2="10" />
+      <line x1="14" y1="10" x2="14" y2="10" />
+      <line x1="18" y1="10" x2="18" y2="10" />
+      <line x1="8" y1="14" x2="16" y2="14" />
+    </svg>
+  );
+}
+
 function TextComposer({
   value,
   onChange,
@@ -473,12 +503,15 @@ function TextComposer({
           Send
         </button>
       </div>
-      <button
-        onClick={onUseVoice}
-        className="mt-3 mx-auto block text-[13px] text-ink-400 hover:text-ink-700 transition-colors"
-      >
-        Use voice instead
-      </button>
+      <div className="mt-3 flex justify-center">
+        <button
+          onClick={onUseVoice}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-clay bg-white text-ink-900 text-sm font-medium shadow-soft hover:bg-sand/60 transition-colors"
+        >
+          <MicIcon />
+          Use voice instead
+        </button>
+      </div>
     </div>
   );
 }

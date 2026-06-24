@@ -9,19 +9,19 @@ interface Props {
 
 export default function VoiceRecorder({ phase, onStart, onDone, onFollowupSpeak, onAddMore }: Props) {
   return (
-    <div className="w-full flex flex-col items-center mb-8">
+    <div className="w-full flex flex-col items-center mb-4">
       {phase === "ready" && <MicButton label="Tap to start your check-in" onClick={onStart} />}
 
       {phase === "recording" && (
         <div className="flex flex-col items-center">
           <button
             onClick={onDone}
-            className="relative w-36 h-36 rounded-full bg-indigo-500 text-white grid place-items-center shadow-lift animate-ring-pulse"
+            className="relative w-28 h-28 rounded-full bg-indigo-500 text-white grid place-items-center shadow-lift animate-ring-pulse"
             aria-label="Stop and review"
           >
             <Waveform />
           </button>
-          <p className="mt-5 text-sm text-ink-400">Listening…</p>
+          <p className="mt-3 text-sm text-ink-400">Listening…</p>
           <button
             onClick={onDone}
             className="mt-2 px-8 py-3 rounded-full bg-ink-900 text-white font-medium shadow-soft active:scale-95 transition-transform"
@@ -62,12 +62,12 @@ export default function VoiceRecorder({ phase, onStart, onDone, onFollowupSpeak,
 function MicButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button onClick={onClick} className="group flex flex-col items-center">
-      <span className="w-36 h-36 rounded-full bg-white border border-clay grid place-items-center shadow-soft transition-all duration-300 group-hover:shadow-lift group-hover:-translate-y-0.5 group-active:scale-95">
-        <span className="w-24 h-24 rounded-full bg-indigo-500 grid place-items-center shadow-glow transition-transform duration-300 group-hover:scale-105">
+      <span className="w-28 h-28 rounded-full bg-white border border-clay grid place-items-center shadow-soft transition-all duration-300 group-hover:shadow-lift group-hover:-translate-y-0.5 group-active:scale-95">
+        <span className="w-20 h-20 rounded-full bg-indigo-500 grid place-items-center shadow-glow transition-transform duration-300 group-hover:scale-105">
           <MicIcon />
         </span>
       </span>
-      <span className="mt-6 text-ink-500">{label}</span>
+      <span className="mt-3 text-ink-500">{label}</span>
     </button>
   );
 }
